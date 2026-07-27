@@ -56,6 +56,15 @@ describe("profile connection test", () => {
     expect(document.querySelector(".locale")?.textContent).toContain("界面语言");
   });
 
+  it("offers auto detection only for the source language", async () => {
+    await import("./options");
+    await vi.waitFor(() => expect(document.querySelector("#sourceLang")).not.toBeNull());
+    const sourceValues = Array.from(document.querySelectorAll<HTMLOptionElement>("#sourceLang option"), (option) => option.value);
+    const targetValues = Array.from(document.querySelectorAll<HTMLOptionElement>("#targetLang option"), (option) => option.value);
+    expect(sourceValues).toHaveLength(18); expect(sourceValues[0]).toBe("auto");
+    expect(targetValues).toHaveLength(17); expect(targetValues).not.toContain("auto");
+  });
+
   it("keeps three profile actions on one row and confirms before deleting", async () => {
     stored.settings = { activeProfileId: "one", profiles: [
       { id: "one", name: "One", baseUrl: "https://one.example/v1", apiKey: "1", model: "m1", sourceLanguage: "English", targetLanguage: "Chinese", mode: "replace" }

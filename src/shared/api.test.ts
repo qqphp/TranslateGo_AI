@@ -34,6 +34,14 @@ describe("Chat Completions client", () => {
     expect(fetch.mock.calls[0][1]?.headers).toMatchObject({ Authorization: "Bearer secret" });
   });
 
+  it("asks the model to detect an automatic source language", async () => {
+    const fetch = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response(JSON.stringify({ choices: [{ message: { content: "Hello" } }] }), { status: 200 }));
+    vi.stubGlobal("fetch", fetch);
+    await translate({ ...profile, sourceLanguage: "auto" }, "Bonjour");
+    const request = JSON.parse(String(fetch.mock.calls[0][1]?.body));
+    expect(request.messages[1].content).toContain("Detect the source language automatically");
+  });
+
   it("returns safe errors without exposing the API key", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response("denied secret", { status: 401 })));
     await expect(translate(profile, "Hello")).rejects.toThrow("API request failed (401)");

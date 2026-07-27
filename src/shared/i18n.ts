@@ -4,7 +4,7 @@ type Messages = Record<string, string>;
 let selectedLocale: UiLocale | null = null;
 
 const commonEnglish: Messages = {
-  title: "LLM Web Translator", uiLanguage: "Interface language", followBrowser: "Follow browser",
+  title: "LLM Web Translator", uiLanguage: "Interface language", followBrowser: "Follow browser", autoDetect: "Auto detect",
   save: "Save profile", add: "Add profile", remove: "Delete", test: "Test connection", active: "Active profile", profiles: "Profiles",
   newProfile: "New profile", editProfile: "Edit profile", noProfiles: "No profiles yet.", name: "Name", baseUrl: "Base URL", apiKey: "API key", model: "Model",
   source: "Source language", target: "Target language", mode: "Translation mode", replace: "Replace original", preserve: "Preserve original",
@@ -21,9 +21,9 @@ const messages: Record<UiLocale, Messages> = {
 };
 
 Object.assign(messages.en, { ok: "OK", confirm: "Delete", cancel: "Cancel", saved: "Profile saved successfully.", confirmDelete: "Delete this profile? This action cannot be undone.", deleted: "Profile deleted." });
-Object.assign(messages["zh-CN"], { ok: "确定", confirm: "删除", cancel: "取消", saved: "档案保存成功。", confirmDelete: "确定删除此档案吗？此操作无法撤销。", deleted: "档案已删除。" });
-Object.assign(messages["zh-TW"], { ok: "確定", confirm: "刪除", cancel: "取消", saved: "設定檔儲存成功。", confirmDelete: "確定刪除此設定檔嗎？此操作無法復原。", deleted: "設定檔已刪除。" });
-Object.assign(messages.ja, { ok: "OK", confirm: "削除", cancel: "キャンセル", saved: "プロファイルを保存しました。", confirmDelete: "このプロファイルを削除しますか？この操作は元に戻せません。", deleted: "プロファイルを削除しました。" });
+Object.assign(messages["zh-CN"], { autoDetect: "自动检测", ok: "确定", confirm: "删除", cancel: "取消", saved: "档案保存成功。", confirmDelete: "确定删除此档案吗？此操作无法撤销。", deleted: "档案已删除。" });
+Object.assign(messages["zh-TW"], { autoDetect: "自動偵測", ok: "確定", confirm: "刪除", cancel: "取消", saved: "設定檔儲存成功。", confirmDelete: "確定刪除此設定檔嗎？此操作無法復原。", deleted: "設定檔已刪除。" });
+Object.assign(messages.ja, { autoDetect: "自動検出", ok: "OK", confirm: "削除", cancel: "キャンセル", saved: "プロファイルを保存しました。", confirmDelete: "このプロファイルを削除しますか？この操作は元に戻せません。", deleted: "プロファイルを削除しました。" });
 
 export function getLocale(language = navigator.language): UiLocale {
   const normalized = language.toLowerCase();

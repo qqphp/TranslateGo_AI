@@ -8,6 +8,9 @@ const originalText = new Map<Text, string>();
 let floatingButton: HTMLButtonElement | null = null;
 let popover: HTMLDivElement | null = null;
 let progressPanel: HTMLDivElement | null = null;
+let progressLabel: HTMLDivElement | null = null;
+let progressBar: HTMLDivElement | null = null;
+let progressPercent: HTMLSpanElement | null = null;
 let progressTotal = 0;
 let progressProcessed = 0;
 let progressFailed = 0;
@@ -26,7 +29,7 @@ const ui = pageMessages[locale];
 
 function addStyles() {
   const style = document.createElement("style");
-  style.textContent = `[${ATTR}]{font-family:system-ui,sans-serif;line-height:1.4} .llmwt-float{position:fixed;z-index:2147483647;border:0;border-radius:16px;background:#2563eb;color:#fff;padding:7px 11px;box-shadow:0 3px 12px #0004;cursor:pointer}.llmwt-popover{position:fixed;z-index:2147483647;max-width:360px;background:#111827;color:#fff;border-radius:8px;padding:12px;box-shadow:0 6px 20px #0005;white-space:pre-wrap}.llmwt-popover button,.llmwt-panel button{margin-left:8px}.llmwt-panel{position:fixed;right:16px;bottom:16px;z-index:2147483647;background:#fff;color:#111827;border:1px solid #d1d5db;border-radius:8px;padding:12px;box-shadow:0 4px 16px #0003}.llmwt-translation{display:inline;margin-left:.35em;color:#1d4ed8;font-style:italic}`;
+  style.textContent = `[${ATTR}]{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.4;box-sizing:border-box}.llmwt-float{position:fixed;z-index:2147483647;border:0;border-radius:16px;background:#2563eb;color:#fff;padding:7px 11px;box-shadow:0 3px 12px #0004;cursor:pointer}.llmwt-popover{position:fixed;z-index:2147483647;max-width:360px;background:#111827;color:#fff;border-radius:8px;padding:12px;box-shadow:0 6px 20px #0005;white-space:pre-wrap}.llmwt-popover button{margin-left:8px}.llmwt-panel{position:fixed;right:20px;bottom:20px;z-index:2147483647;width:min(340px,calc(100vw - 40px));background:#fff;color:#111827;border:1px solid #e2e8f0;border-radius:14px;padding:16px;box-shadow:0 14px 38px #0f172a2e}.llmwt-panel-message{font-size:14px;color:#334155}.llmwt-panel-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}.llmwt-action{appearance:none;border:1px solid transparent;border-radius:8px;padding:8px 13px;font:600 13px/1.2 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;cursor:pointer;transition:background-color .16s,border-color .16s,box-shadow .16s,transform .16s}.llmwt-action:hover{transform:translateY(-1px)}.llmwt-action:focus-visible{outline:3px solid #93c5fd;outline-offset:2px}.llmwt-secondary{background:#f1f5f9;color:#334155;border-color:#cbd5e1}.llmwt-secondary:hover{background:#e2e8f0;border-color:#94a3b8}.llmwt-danger{background:#dc2626;color:#fff;border-color:#dc2626}.llmwt-danger:hover{background:#b91c1c;border-color:#b91c1c;box-shadow:0 4px 10px #dc262633}.llmwt-primary{background:#2563eb;color:#fff;border-color:#2563eb}.llmwt-primary:hover{background:#1d4ed8;border-color:#1d4ed8}.llmwt-progress-head{display:flex;align-items:center;justify-content:space-between;gap:12px}.llmwt-progress-label{min-width:0;font-size:14px;font-weight:600;color:#1e293b}.llmwt-progress-percent{flex:none;color:#2563eb;font-size:14px;font-weight:700;font-variant-numeric:tabular-nums}.llmwt-progress-track{height:9px;margin-top:11px;overflow:hidden;border-radius:999px;background:#e2e8f0}.llmwt-progress-bar{height:100%;width:0;border-radius:inherit;background:linear-gradient(90deg,#2563eb,#38bdf8);box-shadow:0 0 8px #38bdf866;transition:width .2s ease}.llmwt-translation{display:inline;margin-left:.35em;color:#1d4ed8;font-style:italic}`;
   document.documentElement.append(style);
 }
 
@@ -64,18 +67,60 @@ function showPopover(message: string, x: number, y: number, closable = true, onC
   document.documentElement.append(popover);
 }
 
-function showPanel(message: string, buttons: Array<[string, () => void]>) {
+type ButtonStyle = "primary" | "secondary" | "danger";
+type PanelButton = [label: string, handler: () => void, style?: ButtonStyle];
+
+function createActionButton(label: string, handler: () => void, style: ButtonStyle = "secondary") {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = `llmwt-action llmwt-${style}`;
+  button.textContent = label;
+  button.onclick = handler;
+  return button;
+}
+
+function showPanel(message: string, buttons: PanelButton[]) {
   document.querySelector(".llmwt-panel")?.remove();
-  const panel = document.createElement("div"); panel.className = "llmwt-panel"; panel.setAttribute(ATTR, ""); panel.textContent = message;
-  for (const [label, handler] of buttons) { const button = document.createElement("button"); button.textContent = label; button.onclick = () => { handler(); panel.remove(); }; panel.append(button); }
+  const panel = document.createElement("div"); panel.className = "llmwt-panel"; panel.setAttribute(ATTR, "");
+  const text = document.createElement("div"); text.className = "llmwt-panel-message"; text.textContent = message; panel.append(text);
+  if (buttons.length) {
+    const actions = document.createElement("div"); actions.className = "llmwt-panel-actions";
+    for (const [label, handler, style] of buttons) actions.append(createActionButton(label, () => { handler(); panel.remove(); }, style));
+    panel.append(actions);
+  }
   document.documentElement.append(panel);
+  return panel;
+}
+
+function showProgressPanel(taskId: string, total: number) {
+  document.querySelector(".llmwt-panel")?.remove();
+  const panel = document.createElement("div"); panel.className = "llmwt-panel llmwt-progress-panel"; panel.setAttribute(ATTR, "");
+  const head = document.createElement("div"); head.className = "llmwt-progress-head";
+  progressLabel = document.createElement("div"); progressLabel.className = "llmwt-progress-label";
+  progressPercent = document.createElement("span"); progressPercent.className = "llmwt-progress-percent";
+  head.append(progressLabel, progressPercent);
+  const track = document.createElement("div"); track.className = "llmwt-progress-track";
+  progressBar = document.createElement("div"); progressBar.className = "llmwt-progress-bar"; progressBar.setAttribute("role", "progressbar"); progressBar.setAttribute("aria-valuemin", "0"); progressBar.setAttribute("aria-valuemax", "100");
+  track.append(progressBar);
+  const actions = document.createElement("div"); actions.className = "llmwt-panel-actions";
+  actions.append(
+    createActionButton(ui.restore, () => { restoreAndCancel(); panel.remove(); }, "secondary"),
+    createActionButton(ui.cancel, () => { chrome.runtime.sendMessage({ kind: "cancelTask", taskId } satisfies RuntimeMessage); panel.remove(); }, "danger")
+  );
+  panel.append(head, track, actions);
+  document.documentElement.append(panel);
+  progressPanel = panel;
+  updateProgress();
   return panel;
 }
 
 function updateProgress() {
   if (!progressPanel?.isConnected) return;
   const label = `${ui.running}: ${progressProcessed}/${progressTotal}${progressFailed ? ` (${ui.failed}: ${progressFailed})` : ""}`;
-  if (progressPanel.firstChild?.nodeType === Node.TEXT_NODE) progressPanel.firstChild.nodeValue = label;
+  const percentage = progressTotal > 0 ? Math.min(100, Math.round((progressProcessed / progressTotal) * 100)) : 100;
+  if (progressLabel) progressLabel.textContent = label;
+  if (progressPercent) progressPercent.textContent = `${percentage}%`;
+  if (progressBar) { progressBar.style.width = `${percentage}%`; progressBar.setAttribute("aria-valuenow", String(percentage)); }
 }
 
 function applyTranslation(nodeId: string, translation: string) {
@@ -126,13 +171,13 @@ chrome.runtime.onMessage.addListener((message: RuntimeMessage) => {
     restorePage(); const allNodes = collectNodes(); const nodes = allNodes.slice(0, message.maxNodes);
     let cancelled = false;
     const limitNote = allNodes.length > nodes.length ? ` ${allNodes.length - nodes.length} ${ui.remaining}.` : "";
-    showPanel(`${nodes.length} ${ui.nodes}, ${message.maxRequests} ${ui.requests}.${limitNote} ${ui.starting}`, [[ui.cancel, () => { cancelled = true; if (pageStartTimer !== null) window.clearTimeout(pageStartTimer); pageStartTimer = null; }]]);
+    showPanel(`${nodes.length} ${ui.nodes}, ${message.maxRequests} ${ui.requests}.${limitNote} ${ui.starting}`, [[ui.cancel, () => { cancelled = true; if (pageStartTimer !== null) window.clearTimeout(pageStartTimer); pageStartTimer = null; }, "danger"]]);
     pageStartTimer = window.setTimeout(() => { pageStartTimer = null; if (!cancelled) chrome.runtime.sendMessage({ kind: "startPage", nodes } satisfies RuntimeMessage); }, 350);
   }
   if (message.kind === "selectionResult" && message.requestId === selectionRequestId) { selectionRequestId = null; const rect = window.getSelection()?.rangeCount ? window.getSelection()!.getRangeAt(0).getBoundingClientRect() : new DOMRect(16, 16); showPopover(message.text, rect.left, rect.bottom + 10); }
   if (message.kind === "selectionError" && message.requestId === selectionRequestId) { selectionRequestId = null; showPopover(message.error, 16, 16); }
   if (message.kind === "taskError") showPanel(message.error, [[ui.openSettings, () => chrome.runtime.openOptionsPage()]]);
-  if (message.kind === "taskStarted") { currentMode = message.mode; activeTaskId = message.taskId; progressTotal = message.total; progressProcessed = 0; progressFailed = 0; progressPanel = showPanel(`${ui.running}: 0/${message.total}`, [[ui.cancel, () => chrome.runtime.sendMessage({ kind: "cancelTask", taskId: message.taskId } satisfies RuntimeMessage)], [ui.restore, restoreAndCancel]]); }
+  if (message.kind === "taskStarted") { currentMode = message.mode; activeTaskId = message.taskId; progressTotal = message.total; progressProcessed = 0; progressFailed = 0; showProgressPanel(message.taskId, message.total); }
   if (message.kind === "nodeResult" && message.taskId === activeTaskId) { applyTranslation(message.nodeId, message.text); progressProcessed += 1; updateProgress(); }
   if (message.kind === "nodeFailed" && message.taskId === activeTaskId) { progressProcessed += 1; progressFailed += 1; updateProgress(); }
   if (message.kind === "taskFinished") showTaskSummary(message.summary);

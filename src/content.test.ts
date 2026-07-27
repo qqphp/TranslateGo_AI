@@ -23,10 +23,17 @@ describe("page translation entry", () => {
     const handler = addListener.mock.calls[0][0] as (message: unknown) => void;
     handler({ kind: "preparePage", maxNodes: 600, maxRequests: 200 });
     handler({ kind: "taskStarted", taskId: "task-1", total: 2, mode: "replace" });
+    expect(document.querySelector(".llmwt-progress-percent")?.textContent).toBe("0%");
+    expect(document.querySelectorAll(".llmwt-panel-actions .llmwt-action")).toHaveLength(2);
+    expect(document.querySelector(".llmwt-danger")?.textContent).toBe("Cancel");
     handler({ kind: "nodeResult", taskId: "task-1", nodeId: "node-0", text: "译文" });
     expect(document.querySelector(".llmwt-panel")?.textContent).toContain("1/2");
+    expect(document.querySelector(".llmwt-progress-percent")?.textContent).toBe("50%");
+    expect((document.querySelector(".llmwt-progress-bar") as HTMLElement).style.width).toBe("50%");
+    expect(document.querySelector(".llmwt-progress-bar")?.getAttribute("aria-valuenow")).toBe("50");
     handler({ kind: "nodeFailed", taskId: "task-1", node: { id: "node-1", text: "bad" }, error: "failed" });
     expect(document.querySelector(".llmwt-panel")?.textContent).toContain("2/2 (failed: 1)");
+    expect(document.querySelector(".llmwt-progress-percent")?.textContent).toBe("100%");
   });
 
   it("inserts preserved translations and restores the original page", async () => {

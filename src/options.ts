@@ -1,6 +1,7 @@
 import { translate } from "./shared/api";
 import { getSettings, profileLabel, saveSettings, validateBaseUrl } from "./shared/storage";
 import { setLocale, t } from "./shared/i18n";
+import { LANGUAGE_OPTIONS, normalizeLanguage } from "./shared/languages";
 import type { Profile, Settings, TranslationMode, UiLocalePreference } from "./shared/types";
 import "./options.css";
 
@@ -8,10 +9,20 @@ const app = document.querySelector<HTMLDivElement>("#app")!;
 let settings: Settings;
 let editing: Profile | null = null;
 
-const newProfile = (): Profile => ({ id: crypto.randomUUID(), name: "", baseUrl: "", apiKey: "", model: "", sourceLanguage: "English", targetLanguage: "Chinese", mode: "replace" });
+const newProfile = (): Profile => ({ id: crypto.randomUUID(), name: "", baseUrl: "", apiKey: "", model: "", sourceLanguage: "auto", targetLanguage: "zh-CN", mode: "replace" });
 const escape = (value: string) => value.replace(/[&<>"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[char]!);
 const notifyProfileChange = () => chrome.runtime.sendMessage({ kind: "profilesChanged" }).catch(() => undefined);
 const localizeUrlError = (error: string) => error.includes("valid absolute") ? t("invalidUrl") : error.includes("HTTPS") ? t("insecureUrl") : error.includes("credentials") ? t("credentialsUrl") : error.includes("query string") ? t("queryUrl") : error;
+
+function languageOptions(selected: string, includeAuto: boolean): string {
+  const locale = document.documentElement.lang || navigator.language;
+  const displayNames = typeof Intl.DisplayNames === "function" ? new Intl.DisplayNames([locale], { type: "language" }) : null;
+  const auto = includeAuto ? `<option value="auto" ${selected === "auto" ? "selected" : ""}>${t("autoDetect")}</option>` : "";
+  return auto + LANGUAGE_OPTIONS.map((option) => {
+    const label = locale.toLowerCase().startsWith("zh-cn") ? option.zhCN : displayNames?.of(option.displayCode) ?? option.zhCN;
+    return `<option value="${option.value}" ${selected === option.value ? "selected" : ""}>${escape(label)}</option>`;
+  }).join("");
+}
 
 function showDialog(message: string, confirm = false): Promise<boolean> {
   document.querySelector(".settings-dialog")?.remove();
@@ -37,7 +48,8 @@ function profileFromForm(form: HTMLFormElement, base: Profile): Profile {
 }
 
 function render() {
-  const profile = editing ?? newProfile();
+  const baseProfile = editing ?? newProfile();
+  const profile = { ...baseProfile, sourceLanguage: normalizeLanguage(baseProfile.sourceLanguage, "auto"), targetLanguage: normalizeLanguage(baseProfile.targetLanguage, "zh-CN") };
   document.documentElement.lang = settings.uiLocale && settings.uiLocale !== "auto" ? settings.uiLocale : navigator.language;
   document.title = t("title");
   app.innerHTML = `
@@ -51,8 +63,8 @@ function render() {
       <label>${t("baseUrl")}<input name="baseUrl" required placeholder="https://api.example.com/v1" value="${escape(profile.baseUrl)}" /></label>
       <label>${t("apiKey")}<input name="apiKey" type="password" required autocomplete="off" value="${escape(profile.apiKey)}" /></label>
       <label>${t("model")}<input name="model" required value="${escape(profile.model)}" /></label>
-      <label>${t("source")}<input name="sourceLanguage" required value="${escape(profile.sourceLanguage)}" /></label>
-      <label>${t("target")}<input name="targetLanguage" required value="${escape(profile.targetLanguage)}" /></label>
+      <label>${t("source")}<select id="sourceLang" class="form-select" name="sourceLanguage">${languageOptions(profile.sourceLanguage, true)}</select></label>
+      <label>${t("target")}<select id="targetLang" class="form-select" name="targetLanguage">${languageOptions(profile.targetLanguage, false)}</select></label>
       <label>${t("mode")}<select name="mode"><option value="replace" ${profile.mode === "replace" ? "selected" : ""}>${t("replace")}</option><option value="preserve" ${profile.mode === "preserve" ? "selected" : ""}>${t("preserve")}</option></select></label>
       <div class="form-actions"><button class="button primary" type="submit">${t("save")}</button><button class="button secondary" type="button" id="test">${t("test")}</button>${editing ? `<button class="button danger" type="button" id="delete">${t("remove")}</button>` : ""}</div>
     </form></section>`;

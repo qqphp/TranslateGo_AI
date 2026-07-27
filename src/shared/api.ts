@@ -44,7 +44,7 @@ async function chat(profile: Profile, messages: Array<{ role: "system" | "user";
 export async function translate(profile: Profile, text: string, signal?: AbortSignal): Promise<string> {
   return cleanTranslation(await chat(profile, [
     { role: "system", content: SYSTEM_PROMPT },
-    { role: "user", content: `Source language: ${profile.sourceLanguage}\nTarget language: ${profile.targetLanguage}\nText:\n${text}` }
+    { role: "user", content: `${profile.sourceLanguage === "auto" ? "Detect the source language automatically." : `Source language: ${profile.sourceLanguage}`}\nTarget language: ${profile.targetLanguage}\nText:\n${text}` }
   ], signal));
 }
 
@@ -68,7 +68,7 @@ export function parseBatchOutput(output: string, expected: PageNode[]): Map<stri
 export async function translateBatch(profile: Profile, nodes: PageNode[], signal?: AbortSignal): Promise<Map<string, string>> {
   const output = await chat(profile, [
     { role: "system", content: "You are a translation engine. Translate every item from the requested source language to the requested target language. Return only a valid JSON array. Each item must be exactly {\"id\": string, \"translation\": string}; preserve every supplied id exactly; provide plain translations only, with no explanations or Markdown." },
-    { role: "user", content: `Source language: ${profile.sourceLanguage}\nTarget language: ${profile.targetLanguage}\nItems:\n${JSON.stringify(nodes)}` }
+    { role: "user", content: `${profile.sourceLanguage === "auto" ? "Detect the source language of each item automatically." : `Source language: ${profile.sourceLanguage}`}\nTarget language: ${profile.targetLanguage}\nItems:\n${JSON.stringify(nodes)}` }
   ], signal);
   return parseBatchOutput(output, nodes);
 }
