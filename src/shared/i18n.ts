@@ -20,6 +20,11 @@ const messages: Record<UiLocale, Messages> = {
   ja: { ...commonEnglish, title: "LLM Web 翻訳", uiLanguage: "表示言語", followBrowser: "ブラウザーに合わせる", save: "プロファイルを保存", add: "プロファイルを追加", remove: "削除", test: "接続をテスト", active: "現在のプロファイル", profiles: "プロファイル", newProfile: "新しいプロファイル", editProfile: "プロファイルを編集", noProfiles: "プロファイルがありません。", name: "名前", apiKey: "API キー", model: "モデル", source: "翻訳元の言語", target: "翻訳先の言語", mode: "翻訳モード", replace: "原文を置換", preserve: "原文を保持", connected: "接続に成功し、このプロファイルを有効にしました。", connectionFailed: "接続に失敗しました。", invalidUrl: "Base URL は有効な絶対 URL である必要があります。", insecureUrl: "Base URL は HTTPS が必要です（localhost のみ HTTP 可）。", credentialsUrl: "Base URL に認証情報を含めることはできません。", queryUrl: "Base URL にクエリやフラグメントを含めることはできません。", privacy: "ページ本文は明示的に翻訳した場合のみ読み取り、設定した API にのみ送信します。保存・利用状況の計測はしません。", unsupported: "このページはブラウザー拡張機能では翻訳できません。" }
 };
 
+Object.assign(messages.en, { ok: "OK", confirm: "Delete", cancel: "Cancel", saved: "Profile saved successfully.", confirmDelete: "Delete this profile? This action cannot be undone.", deleted: "Profile deleted." });
+Object.assign(messages["zh-CN"], { ok: "确定", confirm: "删除", cancel: "取消", saved: "档案保存成功。", confirmDelete: "确定删除此档案吗？此操作无法撤销。", deleted: "档案已删除。" });
+Object.assign(messages["zh-TW"], { ok: "確定", confirm: "刪除", cancel: "取消", saved: "設定檔儲存成功。", confirmDelete: "確定刪除此設定檔嗎？此操作無法復原。", deleted: "設定檔已刪除。" });
+Object.assign(messages.ja, { ok: "OK", confirm: "削除", cancel: "キャンセル", saved: "プロファイルを保存しました。", confirmDelete: "このプロファイルを削除しますか？この操作は元に戻せません。", deleted: "プロファイルを削除しました。" });
+
 export function getLocale(language = navigator.language): UiLocale {
   const normalized = language.toLowerCase();
   return normalized.startsWith("zh-tw") || normalized.startsWith("zh-hk") ? "zh-TW" : normalized.startsWith("zh") ? "zh-CN" : normalized.startsWith("ja") ? "ja" : "en";

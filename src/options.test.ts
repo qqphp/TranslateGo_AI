@@ -55,4 +55,20 @@ describe("profile connection test", () => {
     });
     expect(document.querySelector(".locale")?.textContent).toContain("界面语言");
   });
+
+  it("keeps three profile actions on one row and confirms before deleting", async () => {
+    stored.settings = { activeProfileId: "one", profiles: [
+      { id: "one", name: "One", baseUrl: "https://one.example/v1", apiKey: "1", model: "m1", sourceLanguage: "English", targetLanguage: "Chinese", mode: "replace" }
+    ] };
+    await import("./options");
+    await vi.waitFor(() => expect(document.querySelector(".profile")).not.toBeNull());
+    (document.querySelector(".profile") as HTMLButtonElement).click();
+    await vi.waitFor(() => expect(document.querySelectorAll(".form-actions .button")).toHaveLength(3));
+    (document.querySelector("#delete") as HTMLButtonElement).click();
+    await vi.waitFor(() => expect(document.querySelector(".settings-dialog")).not.toBeNull());
+    expect((stored.settings as { profiles: unknown[] }).profiles).toHaveLength(1);
+    (document.querySelector(".dialog-confirm") as HTMLButtonElement).click();
+    await vi.waitFor(() => expect((stored.settings as { profiles: unknown[] }).profiles).toHaveLength(0));
+    expect(document.querySelector(".settings-dialog")?.textContent).toContain("Profile deleted");
+  });
 });
