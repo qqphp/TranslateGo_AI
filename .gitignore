@@ -1,0 +1,10 @@
+node_modules/
+.scratch/
+.vite/
+.vite-temp/
+dist/
+.env
+.env.*
+!.env.example
+*.local
+npm-debug.log*
