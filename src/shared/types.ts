@@ -1,4 +1,6 @@
 export type TranslationMode = "replace" | "preserve";
+export type UiLocale = "en" | "zh-CN" | "zh-TW" | "ja";
+export type UiLocalePreference = "auto" | UiLocale;
 
 export interface Profile {
   id: string;
@@ -11,7 +13,7 @@ export interface Profile {
   mode: TranslationMode;
 }
 
-export interface Settings { profiles: Profile[]; activeProfileId: string | null; }
+export interface Settings { profiles: Profile[]; activeProfileId: string | null; uiLocale?: UiLocalePreference; }
 export interface PageNode { id: string; text: string; }
 export interface TaskSummary { taskId: string; total: number; succeeded: number; failed: PageNode[]; cancelled: boolean; }
 

@@ -43,4 +43,16 @@ describe("profile connection test", () => {
       expect(sendMessage).toHaveBeenCalledWith({ kind: "profilesChanged" });
     });
   });
+
+  it("persists an explicit settings-page language and rerenders immediately", async () => {
+    await import("./options");
+    await vi.waitFor(() => expect(document.querySelector("#ui-locale")).not.toBeNull());
+    const selector = document.querySelector<HTMLSelectElement>("#ui-locale")!;
+    selector.value = "zh-CN"; selector.dispatchEvent(new Event("change"));
+    await vi.waitFor(() => {
+      expect((stored.settings as { uiLocale: string }).uiLocale).toBe("zh-CN");
+      expect(document.title).toBe("大模型网页翻译");
+    });
+    expect(document.querySelector(".locale")?.textContent).toContain("界面语言");
+  });
 });

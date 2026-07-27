@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getLocale } from "./i18n";
+import { getLocale, setLocale, t } from "./i18n";
 
 describe("UI locale selection", () => {
   it("supports Simplified Chinese, Traditional Chinese, English, and Japanese", () => {
@@ -10,4 +10,9 @@ describe("UI locale selection", () => {
   });
 
   it("falls back to English", () => expect(getLocale("fr-FR")).toBe("en"));
+  it("supports an explicit settings-page override", () => {
+    setLocale("ja"); expect(t("title")).toBe("LLM Web 翻訳");
+    setLocale("zh-CN"); expect(t("uiLanguage")).toBe("界面语言");
+    setLocale(null);
+  });
 });
