@@ -6,12 +6,13 @@ vi.mock("./shared/api", async (importOriginal) => ({ ...(await importOriginal<ty
 describe("profile connection test", () => {
   const stored: Record<string, unknown> = {};
   const set = vi.fn(async (value: Record<string, unknown>) => Object.assign(stored, value));
+  const sendMessage = vi.fn(async () => undefined);
 
   beforeEach(() => {
     vi.resetModules(); vi.clearAllMocks();
     Object.keys(stored).forEach((key) => delete stored[key]);
     document.body.innerHTML = '<main id="app"></main>';
-    globalThis.chrome = { storage: { local: { get: vi.fn(async () => stored), set } } } as unknown as typeof chrome;
+    globalThis.chrome = { storage: { local: { get: vi.fn(async () => stored), set } }, runtime: { sendMessage } } as unknown as typeof chrome;
     translate.mockResolvedValue("Hello");
   });
 
@@ -26,5 +27,20 @@ describe("profile connection test", () => {
     (document.querySelector("#test") as HTMLButtonElement).click();
     await vi.waitFor(() => expect(set).toHaveBeenCalledOnce());
     expect(stored.settings).toMatchObject({ activeProfileId: expect.any(String), profiles: [expect.objectContaining({ name: "My API" })] });
+    expect(sendMessage).toHaveBeenCalledWith({ kind: "profilesChanged" });
+  });
+
+  it("switches the active profile with one click", async () => {
+    stored.settings = { activeProfileId: "one", profiles: [
+      { id: "one", name: "One", baseUrl: "https://one.example/v1", apiKey: "1", model: "m1", sourceLanguage: "English", targetLanguage: "Chinese", mode: "replace" },
+      { id: "two", name: "Two", baseUrl: "https://two.example/v1", apiKey: "2", model: "m2", sourceLanguage: "English", targetLanguage: "Japanese", mode: "preserve" }
+    ] };
+    await import("./options");
+    await vi.waitFor(() => expect(document.querySelectorAll(".profile")).toHaveLength(2));
+    (document.querySelectorAll<HTMLButtonElement>(".profile")[1]).click();
+    await vi.waitFor(() => {
+      expect((stored.settings as { activeProfileId: string }).activeProfileId).toBe("two");
+      expect(sendMessage).toHaveBeenCalledWith({ kind: "profilesChanged" });
+    });
   });
 });

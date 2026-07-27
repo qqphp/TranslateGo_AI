@@ -10,4 +10,9 @@ describe("validateBaseUrl", () => {
     expect(validateBaseUrl("http://api.example.com")).toMatch(/HTTPS/);
     expect(validateBaseUrl("not a url")).toMatch(/valid/);
   });
+  it("rejects embedded credentials, query strings, and fragments", () => {
+    expect(validateBaseUrl("https://user:pass@example.com/v1")).toMatch(/credentials/);
+    expect(validateBaseUrl("https://example.com/v1?key=value")).toMatch(/query string/);
+    expect(validateBaseUrl("https://example.com/v1#section")).toMatch(/query string/);
+  });
 });

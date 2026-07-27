@@ -1,0 +1,21 @@
+# LLM Web Translator
+
+A Manifest V3 extension for Chrome and Microsoft Edge that translates selected text or visible webpage text through the user's own OpenAI-compatible API.
+
+## Build and load
+
+```powershell
+npm install
+npm run build
+```
+
+Open `chrome://extensions` or `edge://extensions`, enable developer mode, choose **Load unpacked**, and select the generated `dist` directory. Reload the extension and refresh existing webpages after every new build.
+
+## Use
+
+1. Click the toolbar icon and create a profile with an HTTPS Base URL, API key, model, source language, target language, and translation mode.
+2. Test or save the profile. Clicking a profile makes it active and restores translated pages before the new profile is used.
+3. Select webpage text and click the floating translation button, or use the page context menu for full-page translation.
+4. Use the page panel to monitor progress, cancel, retry failures, or restore the original page.
+
+Profiles and API keys are stored only in `chrome.storage.local`. Page text and translations are not persisted.

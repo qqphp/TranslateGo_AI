@@ -1,0 +1,7 @@
+{
+  "extensionName": { "message": "大模型网页翻译" },
+  "extensionDescription": { "message": "使用您自己的 OpenAI 兼容 API 翻译选中文本或网页。" },
+  "actionTitle": { "message": "打开大模型网页翻译设置" },
+  "contextTranslatePage": { "message": "翻译此页面" },
+  "unsupportedPage": { "message": "浏览器扩展无法翻译此页面。" }
+}

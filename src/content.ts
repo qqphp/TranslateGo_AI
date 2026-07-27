@@ -11,10 +11,22 @@ let progressPanel: HTMLDivElement | null = null;
 let progressTotal = 0;
 let progressProcessed = 0;
 let progressFailed = 0;
+let selectionRequestId: string | null = null;
+let pageStartTimer: number | null = null;
+
+const language = (chrome.i18n?.getUILanguage?.() || navigator.language).toLowerCase();
+const locale = language.startsWith("zh-tw") || language.startsWith("zh-hk") ? "zh-TW" : language.startsWith("zh") ? "zh-CN" : language.startsWith("ja") ? "ja" : "en";
+const pageMessages = {
+  en: { translate: "Translate", translating: "Translating…", cancel: "Cancel", restore: "Restore original", openSettings: "Open settings", running: "Translation running", failed: "failed", complete: "completed", partial: "finished with failures", cancelled: "cancelled", retry: "Retry failed", nodes: "text nodes will be sent", requests: "requests", remaining: "nodes will not be sent", starting: "Starting translation…" },
+  "zh-CN": { translate: "翻译", translating: "正在翻译…", cancel: "取消", restore: "恢复原文", openSettings: "打开设置", running: "正在翻译", failed: "失败", complete: "已完成", partial: "部分失败", cancelled: "已取消", retry: "重试失败项", nodes: "个文本节点将被发送", requests: "次请求", remaining: "个节点不会发送", starting: "正在开始翻译…" },
+  "zh-TW": { translate: "翻譯", translating: "正在翻譯…", cancel: "取消", restore: "恢復原文", openSettings: "開啟設定", running: "正在翻譯", failed: "失敗", complete: "已完成", partial: "部分失敗", cancelled: "已取消", retry: "重試失敗項", nodes: "個文字節點將被傳送", requests: "次請求", remaining: "個節點不會傳送", starting: "正在開始翻譯…" },
+  ja: { translate: "翻訳", translating: "翻訳中…", cancel: "キャンセル", restore: "原文を復元", openSettings: "設定を開く", running: "翻訳中", failed: "失敗", complete: "完了", partial: "一部失敗", cancelled: "キャンセル済み", retry: "失敗項目を再試行", nodes: "個のテキストノードを送信", requests: "リクエスト", remaining: "個のノードは送信されません", starting: "翻訳を開始しています…" }
+} as const;
+const ui = pageMessages[locale];
 
 function addStyles() {
   const style = document.createElement("style");
-  style.textContent = `[${ATTR}]{font-family:system-ui,sans-serif;line-height:1.4} .llmwt-float{position:fixed;z-index:2147483647;border:0;border-radius:16px;background:#2563eb;color:#fff;padding:7px 11px;box-shadow:0 3px 12px #0004;cursor:pointer}.llmwt-popover{position:fixed;z-index:2147483647;max-width:360px;background:#111827;color:#fff;border-radius:8px;padding:12px;box-shadow:0 6px 20px #0005;white-space:pre-wrap}.llmwt-popover button,.llmwt-panel button{margin-left:8px}.llmwt-panel{position:fixed;right:16px;bottom:16px;z-index:2147483647;background:#fff;color:#111827;border:1px solid #d1d5db;border-radius:8px;padding:12px;box-shadow:0 4px 16px #0003}.llmwt-translation{display:block;margin:.35em 0;color:#1d4ed8;font-style:italic}`;
+  style.textContent = `[${ATTR}]{font-family:system-ui,sans-serif;line-height:1.4} .llmwt-float{position:fixed;z-index:2147483647;border:0;border-radius:16px;background:#2563eb;color:#fff;padding:7px 11px;box-shadow:0 3px 12px #0004;cursor:pointer}.llmwt-popover{position:fixed;z-index:2147483647;max-width:360px;background:#111827;color:#fff;border-radius:8px;padding:12px;box-shadow:0 6px 20px #0005;white-space:pre-wrap}.llmwt-popover button,.llmwt-panel button{margin-left:8px}.llmwt-panel{position:fixed;right:16px;bottom:16px;z-index:2147483647;background:#fff;color:#111827;border:1px solid #d1d5db;border-radius:8px;padding:12px;box-shadow:0 4px 16px #0003}.llmwt-translation{display:inline;margin-left:.35em;color:#1d4ed8;font-style:italic}`;
   document.documentElement.append(style);
 }
 
@@ -41,14 +53,14 @@ function collectNodes(): PageNode[] {
 }
 
 function removePopover() { popover?.remove(); popover = null; }
-function showPopover(message: string, x: number, y: number, closable = true) {
+function showPopover(message: string, x: number, y: number, closable = true, onClose?: () => void) {
   removePopover();
   popover = document.createElement("div");
   popover.className = "llmwt-popover";
   popover.setAttribute(ATTR, "");
   popover.style.left = `${Math.max(8, x)}px`; popover.style.top = `${Math.max(8, y)}px`;
   popover.textContent = message;
-  if (closable) { const close = document.createElement("button"); close.textContent = "×"; close.onclick = removePopover; popover.append(close); }
+  if (closable) { const close = document.createElement("button"); close.textContent = "×"; close.onclick = () => { onClose?.(); removePopover(); }; popover.append(close); }
   document.documentElement.append(popover);
 }
 
@@ -62,7 +74,7 @@ function showPanel(message: string, buttons: Array<[string, () => void]>) {
 
 function updateProgress() {
   if (!progressPanel?.isConnected) return;
-  const label = `Translation running: ${progressProcessed}/${progressTotal}${progressFailed ? ` (failed: ${progressFailed})` : ""}`;
+  const label = `${ui.running}: ${progressProcessed}/${progressTotal}${progressFailed ? ` (${ui.failed}: ${progressFailed})` : ""}`;
   if (progressPanel.firstChild?.nodeType === Node.TEXT_NODE) progressPanel.firstChild.nodeValue = label;
 }
 
@@ -77,10 +89,16 @@ function applyTranslation(nodeId: string, translation: string) {
 }
 
 function restorePage() {
+  if (pageStartTimer !== null) { window.clearTimeout(pageStartTimer); pageStartTimer = null; }
   originalText.forEach((original, node) => { node.data = original; });
   originalText.clear();
   document.querySelectorAll(`[${ATTR}="translation"]`).forEach((element) => element.remove());
   nodeMap.clear(); activeTaskId = null;
+}
+
+function restoreAndCancel() {
+  if (activeTaskId) chrome.runtime.sendMessage({ kind: "cancelTask", taskId: activeTaskId } satisfies RuntimeMessage);
+  restorePage();
 }
 
 function selectedText() {
@@ -88,9 +106,14 @@ function selectedText() {
   if (!text || !range) return;
   const rect = range.getBoundingClientRect();
   floatingButton?.remove();
-  floatingButton = document.createElement("button"); floatingButton.className = "llmwt-float"; floatingButton.setAttribute(ATTR, ""); floatingButton.textContent = "Translate";
+  floatingButton = document.createElement("button"); floatingButton.className = "llmwt-float"; floatingButton.setAttribute(ATTR, ""); floatingButton.textContent = ui.translate;
   floatingButton.style.left = `${Math.max(8, rect.left)}px`; floatingButton.style.top = `${Math.max(8, rect.bottom + 6)}px`;
-  floatingButton.onclick = () => { showPopover("Translating…", rect.left, rect.bottom + 42, true); chrome.runtime.sendMessage({ kind: "translateSelection", text } satisfies RuntimeMessage); floatingButton?.remove(); floatingButton = null; };
+  floatingButton.onclick = () => {
+    if (selectionRequestId) chrome.runtime.sendMessage({ kind: "cancelSelection", requestId: selectionRequestId } satisfies RuntimeMessage);
+    const requestId = crypto.randomUUID(); selectionRequestId = requestId;
+    showPopover(ui.translating, rect.left, rect.bottom + 42, true, () => { chrome.runtime.sendMessage({ kind: "cancelSelection", requestId } satisfies RuntimeMessage); if (selectionRequestId === requestId) selectionRequestId = null; });
+    chrome.runtime.sendMessage({ kind: "translateSelection", requestId, text } satisfies RuntimeMessage); floatingButton?.remove(); floatingButton = null;
+  };
   document.documentElement.append(floatingButton);
 }
 
@@ -102,14 +125,14 @@ chrome.runtime.onMessage.addListener((message: RuntimeMessage) => {
   if (message.kind === "preparePage") {
     restorePage(); const allNodes = collectNodes(); const nodes = allNodes.slice(0, message.maxNodes);
     let cancelled = false;
-    const limitNote = allNodes.length > nodes.length ? ` The remaining ${allNodes.length - nodes.length} nodes will not be sent.` : "";
-    showPanel(`${nodes.length} text nodes will be sent in up to ${message.maxRequests} requests.${limitNote} Starting translation…`, [["Cancel", () => { cancelled = true; }]]);
-    window.setTimeout(() => { if (!cancelled) chrome.runtime.sendMessage({ kind: "startPage", nodes } satisfies RuntimeMessage); }, 350);
+    const limitNote = allNodes.length > nodes.length ? ` ${allNodes.length - nodes.length} ${ui.remaining}.` : "";
+    showPanel(`${nodes.length} ${ui.nodes}, ${message.maxRequests} ${ui.requests}.${limitNote} ${ui.starting}`, [[ui.cancel, () => { cancelled = true; if (pageStartTimer !== null) window.clearTimeout(pageStartTimer); pageStartTimer = null; }]]);
+    pageStartTimer = window.setTimeout(() => { pageStartTimer = null; if (!cancelled) chrome.runtime.sendMessage({ kind: "startPage", nodes } satisfies RuntimeMessage); }, 350);
   }
-  if (message.kind === "selectionResult") { const rect = window.getSelection()?.rangeCount ? window.getSelection()!.getRangeAt(0).getBoundingClientRect() : new DOMRect(16, 16); showPopover(message.text, rect.left, rect.bottom + 10); }
-  if (message.kind === "selectionError") showPopover(message.error, 16, 16);
-  if (message.kind === "taskError") showPanel(message.error, [["Open settings", () => chrome.runtime.openOptionsPage()]]);
-  if (message.kind === "taskStarted") { currentMode = message.mode; activeTaskId = message.taskId; progressTotal = message.total; progressProcessed = 0; progressFailed = 0; progressPanel = showPanel(`Translation running: 0/${message.total}`, [["Cancel", () => chrome.runtime.sendMessage({ kind: "cancelTask", taskId: message.taskId } satisfies RuntimeMessage)], ["Restore", restorePage]]); }
+  if (message.kind === "selectionResult" && message.requestId === selectionRequestId) { selectionRequestId = null; const rect = window.getSelection()?.rangeCount ? window.getSelection()!.getRangeAt(0).getBoundingClientRect() : new DOMRect(16, 16); showPopover(message.text, rect.left, rect.bottom + 10); }
+  if (message.kind === "selectionError" && message.requestId === selectionRequestId) { selectionRequestId = null; showPopover(message.error, 16, 16); }
+  if (message.kind === "taskError") showPanel(message.error, [[ui.openSettings, () => chrome.runtime.openOptionsPage()]]);
+  if (message.kind === "taskStarted") { currentMode = message.mode; activeTaskId = message.taskId; progressTotal = message.total; progressProcessed = 0; progressFailed = 0; progressPanel = showPanel(`${ui.running}: 0/${message.total}`, [[ui.cancel, () => chrome.runtime.sendMessage({ kind: "cancelTask", taskId: message.taskId } satisfies RuntimeMessage)], [ui.restore, restoreAndCancel]]); }
   if (message.kind === "nodeResult" && message.taskId === activeTaskId) { applyTranslation(message.nodeId, message.text); progressProcessed += 1; updateProgress(); }
   if (message.kind === "nodeFailed" && message.taskId === activeTaskId) { progressProcessed += 1; progressFailed += 1; updateProgress(); }
   if (message.kind === "taskFinished") showTaskSummary(message.summary);
@@ -118,6 +141,7 @@ chrome.runtime.onMessage.addListener((message: RuntimeMessage) => {
 
 function showTaskSummary(summary: TaskSummary) {
   if (summary.taskId !== activeTaskId) return;
-  const state = summary.cancelled ? "cancelled" : summary.failed.length ? "finished with failures" : "completed";
-  showPanel(`Translation ${state}: ${summary.succeeded}/${summary.total}.`, [["Restore original", restorePage], ...(summary.failed.length ? [["Retry failed", () => chrome.runtime.sendMessage({ kind: "retryNodes", nodes: summary.failed } satisfies RuntimeMessage)] as [string, () => void]] : [])]);
+  const state = summary.cancelled ? ui.cancelled : summary.failed.length ? ui.partial : ui.complete;
+  const failedPreview = summary.failed.slice(0, 3).map((node) => node.text.trim().slice(0, 40)).filter(Boolean).join(" · ");
+  showPanel(`${state}: ${summary.succeeded}/${summary.total}.${failedPreview ? ` ${ui.failed}: ${failedPreview}` : ""}`, [[ui.restore, restorePage], ...(summary.failed.length ? [[ui.retry, () => chrome.runtime.sendMessage({ kind: "retryNodes", nodes: summary.failed } satisfies RuntimeMessage)] as [string, () => void]] : [])]);
 }

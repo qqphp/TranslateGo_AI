@@ -16,15 +16,17 @@ export interface PageNode { id: string; text: string; }
 export interface TaskSummary { taskId: string; total: number; succeeded: number; failed: PageNode[]; cancelled: boolean; }
 
 export type RuntimeMessage =
-  | { kind: "translateSelection"; text: string }
+  | { kind: "translateSelection"; requestId: string; text: string }
+  | { kind: "cancelSelection"; requestId: string }
+  | { kind: "profilesChanged" }
   | { kind: "startPage"; nodes: PageNode[] }
   | { kind: "cancelTask"; taskId: string }
   | { kind: "retryNodes"; nodes: PageNode[] }
   | { kind: "restorePage" }
   | { kind: "preparePage"; maxNodes: number; maxRequests: number }
   | { kind: "pagePrepared"; count: number }
-  | { kind: "selectionResult"; text: string }
-  | { kind: "selectionError"; error: string }
+  | { kind: "selectionResult"; requestId: string; text: string }
+  | { kind: "selectionError"; requestId: string; error: string }
   | { kind: "taskStarted"; taskId: string; total: number; mode: TranslationMode }
   | { kind: "nodeResult"; taskId: string; nodeId: string; text: string }
   | { kind: "nodeFailed"; taskId: string; node: PageNode; error: string }

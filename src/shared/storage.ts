@@ -21,6 +21,8 @@ export async function getActiveProfile(): Promise<Profile | null> {
 export function validateBaseUrl(raw: string): string | null {
   try {
     const url = new URL(raw);
+    if (url.username || url.password) return "Base URL must not contain embedded credentials.";
+    if (url.search || url.hash) return "Base URL must not contain a query string or fragment.";
     if (url.protocol === "https:") return null;
     if (url.protocol === "http:" && (url.hostname === "localhost" || url.hostname === "127.0.0.1" || url.hostname === "[::1]")) return null;
     return "Base URL must use HTTPS (HTTP is only allowed for localhost).";

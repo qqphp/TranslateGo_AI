@@ -1,0 +1,7 @@
+{
+  "extensionName": { "message": "LLM Web Translator" },
+  "extensionDescription": { "message": "Translate selected text or webpages using your own OpenAI-compatible API." },
+  "actionTitle": { "message": "Open LLM Web Translator settings" },
+  "contextTranslatePage": { "message": "Translate this page" },
+  "unsupportedPage": { "message": "This page cannot be translated by browser extensions." }
+}
