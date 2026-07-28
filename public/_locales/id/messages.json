@@ -1,0 +1,20 @@
+{
+  "extensionName": {
+    "message": "AI大模型-沉浸式翻译-免费-极简"
+  },
+  "extensionDescription": {
+    "message": "Terjemahkan teks pilihan atau halaman web dengan API kompatibel OpenAI milik Anda."
+  },
+  "actionTitle": {
+    "message": "Buka pengaturan penerjemah"
+  },
+  "contextTranslatePage": {
+    "message": "Terjemahkan halaman ini"
+  },
+  "contextTranslateSelection": {
+    "message": "Terjemahkan teks pilihan"
+  },
+  "unsupportedPage": {
+    "message": "Halaman ini tidak dapat diterjemahkan oleh ekstensi browser."
+  }
+}

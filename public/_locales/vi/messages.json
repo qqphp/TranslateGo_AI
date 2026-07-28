@@ -1,0 +1,20 @@
+{
+  "extensionName": {
+    "message": "AI大模型-沉浸式翻译-免费-极简"
+  },
+  "extensionDescription": {
+    "message": "Dịch văn bản đã chọn hoặc trang web bằng API tương thích OpenAI của bạn."
+  },
+  "actionTitle": {
+    "message": "Mở cài đặt trình dịch"
+  },
+  "contextTranslatePage": {
+    "message": "Dịch trang này"
+  },
+  "contextTranslateSelection": {
+    "message": "Dịch văn bản đã chọn"
+  },
+  "unsupportedPage": {
+    "message": "Tiện ích trình duyệt không thể dịch trang này."
+  }
+}

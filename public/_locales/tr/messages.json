@@ -1,0 +1,20 @@
+{
+  "extensionName": {
+    "message": "AI大模型-沉浸式翻译-免费-极简"
+  },
+  "extensionDescription": {
+    "message": "Seçili metni veya web sayfalarını kendi OpenAI uyumlu API’nizle çevirin."
+  },
+  "actionTitle": {
+    "message": "Çevirmen ayarlarını aç"
+  },
+  "contextTranslatePage": {
+    "message": "Bu sayfayı çevir"
+  },
+  "contextTranslateSelection": {
+    "message": "Seçili metni çevir"
+  },
+  "unsupportedPage": {
+    "message": "Tarayıcı uzantıları bu sayfayı çeviremez."
+  }
+}

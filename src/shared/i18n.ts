@@ -8,6 +8,9 @@ const PRODUCT_NAME = "AI大模型-沉浸式翻译-免费-极简";
 
 const commonEnglish: Messages = {
   title: PRODUCT_NAME,
+  localeName: "English",
+  extensionDescription: "Translate selected text or webpages using your own OpenAI-compatible API.",
+  actionTitle: `Open ${PRODUCT_NAME} settings`, contextTranslatePage: "Translate this page", contextTranslateSelection: "Translate selected text",
   brandTagline: "A focused AI translation tool for every webpage",
   uiLanguage: "Interface language", followBrowser: "Follow browser", autoDetect: "Auto detect",
   settingsTab: "Settings", aboutTab: "About", pageNavigation: "Settings page navigation",
@@ -30,11 +33,16 @@ const commonEnglish: Messages = {
   featureAccurate: "Accurate", featureAccurateDesc: "Use capable large language models for context-aware translations.",
   featureFluent: "Fluent", featureFluentDesc: "Readable phrasing helps ideas flow naturally across languages.",
   featureNatural: "Natural", featureNaturalDesc: "Translations favor authentic expression over rigid word-for-word output.",
-  aboutClosingTitle: "Built only for translation", aboutClosing: "Break language barriers with ease and understand any content you encounter on the web."
+  aboutClosingTitle: "Built only for translation", aboutClosing: "Break language barriers with ease and understand any content you encounter on the web.",
+  contentTranslating: "Translating…", contentClose: "Close", contentRestore: "Restore original", contentOpenSettings: "Open settings", contentRunning: "Translation running", contentFailed: "failed", contentCancelled: "cancelled", contentRetry: "Retry failed",
+  contentSegmentsSent: "text segments will be sent", contentRequestLimit: "up to {count} requests", contentStarting: "Starting translation…", contentNewContent: "New content found. Adding translation…",
+  contentCompletion: "Translation complete! {count} text segments translated (continuing to watch for new content)", contentPartialCompletion: "Translation complete! {count} text segments translated, {failed} failed (continuing to watch for new content)"
 };
 
 const simplifiedChinese: Messages = {
   ...commonEnglish,
+  localeName: "简体中文",
+  extensionDescription: "使用您自己的 OpenAI 兼容 API 翻译选中文本或网页。", actionTitle: `打开 ${PRODUCT_NAME} 设置`, contextTranslatePage: "翻译此页面", contextTranslateSelection: "翻译选中文字",
   brandTagline: "专注、纯粹的网页 AI 翻译工具",
   uiLanguage: "界面语言", followBrowser: "跟随浏览器", autoDetect: "自动检测",
   settingsTab: "配置", aboutTab: "说明", pageNavigation: "配置页面导航",
@@ -56,40 +64,54 @@ const simplifiedChinese: Messages = {
   featureAccurate: "准确", featureAccurateDesc: "借助大模型理解上下文，让译文准确传达原意。",
   featureFluent: "流畅", featureFluentDesc: "顺畅易读的表达，让跨语言阅读不再磕绊。",
   featureNatural: "自然", featureNaturalDesc: "告别生硬的逐字替换，呈现更贴近真实语言的译文。",
-  aboutClosingTitle: "只为翻译而打造", aboutClosing: "助你轻松打破语言障碍，读懂网页上的任何内容。"
+  aboutClosingTitle: "只为翻译而打造", aboutClosing: "助你轻松打破语言障碍，读懂网页上的任何内容。",
+  contentTranslating: "正在翻译…", contentClose: "关闭", contentRestore: "恢复原文", contentOpenSettings: "打开设置", contentRunning: "正在翻译", contentFailed: "失败", contentCancelled: "已取消", contentRetry: "重试失败项",
+  contentSegmentsSent: "段文本将被发送", contentRequestLimit: "最多 {count} 次请求", contentStarting: "正在开始翻译…", contentNewContent: "发现新内容，开始追加翻译…",
+  contentCompletion: "翻译完成！共翻译 {count} 段文本（将持续监听新内容）", contentPartialCompletion: "翻译完成！共翻译 {count} 段文本，{failed} 段失败（将持续监听新内容）"
 };
 
 const traditionalChinese: Messages = {
   ...simplifiedChinese,
+  localeName: "繁體中文",
+  extensionDescription: "使用您自己的 OpenAI 相容 API 翻譯選取文字或網頁。", actionTitle: `開啟 ${PRODUCT_NAME} 設定`, contextTranslatePage: "翻譯此頁面", contextTranslateSelection: "翻譯選取文字",
   brandTagline: "專注、純粹的網頁 AI 翻譯工具", uiLanguage: "介面語言", followBrowser: "跟隨瀏覽器", autoDetect: "自動偵測",
   settingsTab: "設定", aboutTab: "說明", pageNavigation: "設定頁面導覽", save: "儲存設定檔", add: "新增設定檔", remove: "刪除", test: "測試連線", active: "目前", profiles: "設定檔",
   profilesEyebrow: "已儲存", editingEyebrow: "更新設定", createEyebrow: "連接模型", newProfile: "新增設定檔", editProfile: "編輯設定檔", noProfiles: "尚無設定檔。", name: "名稱", apiKey: "API 金鑰", model: "模型", language: "語言",
   source: "來源語言", target: "目標語言", mode: "翻譯模式", replace: "取代原文", preserve: "雙語對照", connected: "連線成功，此設定檔已設為目前設定檔。", connectionFailed: "連線失敗。", invalidUrl: "Base URL 必須是有效的絕對網址。", insecureUrl: "Base URL 必須使用 HTTPS（僅 localhost 可使用 HTTP）。", credentialsUrl: "Base URL 不得包含使用者名稱或密碼。", queryUrl: "Base URL 不得包含查詢參數或片段。",
   privacy: "僅在您主動翻譯後讀取網頁文字，並且只傳送到您設定的 API；不會儲存或用於遙測。", unsupported: "瀏覽器擴充功能無法翻譯此頁面。", ok: "確定", confirm: "刪除", cancel: "取消", saved: "設定檔儲存成功。", confirmDelete: "確定刪除此設定檔嗎？此操作無法復原。", deleted: "設定檔已刪除。",
   aboutEyebrow: "為閱讀而生", aboutTitle: "純粹、輕鬆的沉浸式翻譯", aboutIntro: "這是一款由你選擇的 AI 大模型驅動的輕量瀏覽器擴充功能。無需離開目前網頁，即可翻譯選取文字或整頁內容。",
-  featureFree: "免費", featureFreeDesc: "擴充功能本身不收取訂閱費用，連接你設定的 API 即可使用。", featureAllInOne: "一站式 AI 翻譯", featureAllInOneDesc: "模型、語言、選取與整頁翻譯集中管理。", featureSelection: "劃詞翻譯", featureSelectionDesc: "選取網頁上的任意文字，原地取得譯文。", featureBilingual: "雙語對照翻譯", featureBilingualDesc: "保留原文並緊隨顯示譯文，方便對照閱讀。", featureLanguages: "支援多種語言", featureLanguagesDesc: "涵蓋多種常用語言，輕鬆切換來源與目標語言。", featureNoAds: "無廣告", featureNoAdsDesc: "沒有廣告、推廣彈窗或打斷閱讀的內容。", featurePure: "純潔", featurePureDesc: "設定檔儲存在本機，不做遙測，只專注翻譯。", featureAccurate: "準確", featureAccurateDesc: "借助大模型理解上下文，準確傳達原意。", featureFluent: "流暢", featureFluentDesc: "順暢易讀的表達，讓跨語言閱讀更輕鬆。", featureNatural: "自然", featureNaturalDesc: "呈現更貼近真實語言的自然譯文。", aboutClosingTitle: "只為翻譯而打造", aboutClosing: "助你輕鬆打破語言障礙，讀懂網頁上的任何內容。"
+  featureFree: "免費", featureFreeDesc: "擴充功能本身不收取訂閱費用，連接你設定的 API 即可使用。", featureAllInOne: "一站式 AI 翻譯", featureAllInOneDesc: "模型、語言、選取與整頁翻譯集中管理。", featureSelection: "劃詞翻譯", featureSelectionDesc: "選取網頁上的任意文字，原地取得譯文。", featureBilingual: "雙語對照翻譯", featureBilingualDesc: "保留原文並緊隨顯示譯文，方便對照閱讀。", featureLanguages: "支援多種語言", featureLanguagesDesc: "涵蓋多種常用語言，輕鬆切換來源與目標語言。", featureNoAds: "無廣告", featureNoAdsDesc: "沒有廣告、推廣彈窗或打斷閱讀的內容。", featurePure: "純潔", featurePureDesc: "設定檔儲存在本機，不做遙測，只專注翻譯。", featureAccurate: "準確", featureAccurateDesc: "借助大模型理解上下文，準確傳達原意。", featureFluent: "流暢", featureFluentDesc: "順暢易讀的表達，讓跨語言閱讀更輕鬆。", featureNatural: "自然", featureNaturalDesc: "呈現更貼近真實語言的自然譯文。", aboutClosingTitle: "只為翻譯而打造", aboutClosing: "助你輕鬆打破語言障礙，讀懂網頁上的任何內容。",
+  contentTranslating: "正在翻譯…", contentClose: "關閉", contentRestore: "恢復原文", contentOpenSettings: "開啟設定", contentRunning: "正在翻譯", contentFailed: "失敗", contentCancelled: "已取消", contentRetry: "重試失敗項",
+  contentSegmentsSent: "段文字將被傳送", contentRequestLimit: "最多 {count} 次請求", contentStarting: "正在開始翻譯…", contentNewContent: "發現新內容，開始追加翻譯…",
+  contentCompletion: "翻譯完成！共翻譯 {count} 段文字（將持續監聽新內容）", contentPartialCompletion: "翻譯完成！共翻譯 {count} 段文字，{failed} 段失敗（將持續監聽新內容）"
 };
 
 const japanese: Messages = {
   ...commonEnglish,
+  localeName: "日本語",
+  extensionDescription: "独自の OpenAI 互換 API で選択テキストやウェブページを翻訳します。", actionTitle: `${PRODUCT_NAME} の設定を開く`, contextTranslatePage: "このページを翻訳", contextTranslateSelection: "選択したテキストを翻訳",
   brandTagline: "ウェブ閲覧に集中できる、純粋な AI 翻訳ツール", uiLanguage: "表示言語", followBrowser: "ブラウザーに合わせる", autoDetect: "自動検出",
   settingsTab: "設定", aboutTab: "概要", pageNavigation: "設定ページのナビゲーション", save: "プロファイルを保存", add: "プロファイルを追加", remove: "削除", test: "接続をテスト", active: "使用中", profiles: "プロファイル",
   profilesEyebrow: "保存済み", editingEyebrow: "設定を更新", createEyebrow: "モデルに接続", newProfile: "新しいプロファイル", editProfile: "プロファイルを編集", noProfiles: "プロファイルがありません。", name: "名前", apiKey: "API キー", model: "モデル", language: "言語",
   source: "翻訳元の言語", target: "翻訳先の言語", mode: "翻訳モード", replace: "原文を置換", preserve: "バイリンガル表示", connected: "接続に成功し、このプロファイルを有効にしました。", connectionFailed: "接続に失敗しました。", invalidUrl: "Base URL は有効な絶対 URL である必要があります。", insecureUrl: "Base URL は HTTPS が必要です（localhost のみ HTTP 可）。", credentialsUrl: "Base URL に認証情報を含めることはできません。", queryUrl: "Base URL にクエリやフラグメントを含めることはできません。",
   privacy: "ページ本文は明示的に翻訳した場合のみ読み取り、設定した API にのみ送信します。保存・利用状況の計測はしません。", unsupported: "このページはブラウザー拡張機能では翻訳できません。", ok: "OK", confirm: "削除", cancel: "キャンセル", saved: "プロファイルを保存しました。", confirmDelete: "このプロファイルを削除しますか？この操作は元に戻せません。", deleted: "プロファイルを削除しました。",
   aboutEyebrow: "読むためのデザイン", aboutTitle: "邪魔のない没入型翻訳", aboutIntro: "選択した AI モデルで動作する軽量なブラウザー拡張機能です。ページを離れずに、選択した文章やページ全体を翻訳できます。",
-  featureFree: "無料", featureFreeDesc: "拡張機能の利用料はなく、設定した API で使用できます。", featureAllInOne: "AI 翻訳を一か所に", featureAllInOneDesc: "モデル、言語、選択範囲、ページ翻訳をまとめて管理できます。", featureSelection: "選択範囲を翻訳", featureSelectionDesc: "文章を選ぶだけで、その場に翻訳を表示します。", featureBilingual: "原文と訳文を対照表示", featureBilingualDesc: "原文を残して訳文を並べ、読み比べられます。", featureLanguages: "多言語対応", featureLanguagesDesc: "多くの一般的な言語を切り替えて翻訳できます。", featureNoAds: "広告なし", featureNoAdsDesc: "広告や宣伝ポップアップで読書を妨げません。", featurePure: "純粋", featurePureDesc: "ローカル保存、テレメトリなし。翻訳だけに集中します。", featureAccurate: "正確", featureAccurateDesc: "大規模言語モデルが文脈を理解して原意を伝えます。", featureFluent: "流暢", featureFluentDesc: "読みやすい表現で言語の壁を滑らかに越えます。", featureNatural: "自然", featureNaturalDesc: "逐語訳ではなく、自然な言い回しを重視します。", aboutClosingTitle: "翻訳のためだけに設計", aboutClosing: "言葉の壁を気軽に越え、ウェブ上のあらゆる内容を理解できます。"
+  featureFree: "無料", featureFreeDesc: "拡張機能の利用料はなく、設定した API で使用できます。", featureAllInOne: "AI 翻訳を一か所に", featureAllInOneDesc: "モデル、言語、選択範囲、ページ翻訳をまとめて管理できます。", featureSelection: "選択範囲を翻訳", featureSelectionDesc: "文章を選ぶだけで、その場に翻訳を表示します。", featureBilingual: "原文と訳文を対照表示", featureBilingualDesc: "原文を残して訳文を並べ、読み比べられます。", featureLanguages: "多言語対応", featureLanguagesDesc: "多くの一般的な言語を切り替えて翻訳できます。", featureNoAds: "広告なし", featureNoAdsDesc: "広告や宣伝ポップアップで読書を妨げません。", featurePure: "純粋", featurePureDesc: "ローカル保存、テレメトリなし。翻訳だけに集中します。", featureAccurate: "正確", featureAccurateDesc: "大規模言語モデルが文脈を理解して原意を伝えます。", featureFluent: "流暢", featureFluentDesc: "読みやすい表現で言語の壁を滑らかに越えます。", featureNatural: "自然", featureNaturalDesc: "逐語訳ではなく、自然な言い回しを重視します。", aboutClosingTitle: "翻訳のためだけに設計", aboutClosing: "言葉の壁を気軽に越え、ウェブ上のあらゆる内容を理解できます。",
+  contentTranslating: "翻訳中…", contentClose: "閉じる", contentRestore: "原文を復元", contentOpenSettings: "設定を開く", contentRunning: "翻訳中", contentFailed: "失敗", contentCancelled: "キャンセル済み", contentRetry: "失敗項目を再試行",
+  contentSegmentsSent: "件のテキストを送信", contentRequestLimit: "最大 {count} リクエスト", contentStarting: "翻訳を開始しています…", contentNewContent: "新しい内容を検出しました。追加翻訳を開始します…",
+  contentCompletion: "翻訳完了！合計 {count} 件のテキストを翻訳しました（新しい内容の監視を継続します）", contentPartialCompletion: "翻訳完了！合計 {count} 件を翻訳、{failed} 件が失敗しました（新しい内容の監視を継続します）"
 };
 
-const messages: Record<UiLocale, Messages> = { en: commonEnglish, "zh-CN": simplifiedChinese, "zh-TW": traditionalChinese, ja: japanese, ...createAdditionalLocaleMessages(commonEnglish) };
+export const localeMessages: Record<UiLocale, Messages> = { en: commonEnglish, "zh-CN": simplifiedChinese, "zh-TW": traditionalChinese, ja: japanese, ...createAdditionalLocaleMessages(commonEnglish) };
+export const localeNames = Object.fromEntries(Object.entries(localeMessages).map(([locale, values]) => [locale, values.localeName])) as Record<UiLocale, string>;
 
 export function getLocale(language = navigator.language): UiLocale {
   const normalized = language.toLowerCase();
   if (normalized.startsWith("zh-tw") || normalized.startsWith("zh-hk") || normalized.startsWith("zh-hant")) return "zh-TW";
   if (normalized.startsWith("zh")) return "zh-CN";
   const primary = normalized.split("-")[0] as UiLocale;
-  return Object.prototype.hasOwnProperty.call(messages, primary) ? primary : "en";
+  return Object.prototype.hasOwnProperty.call(localeMessages, primary) ? primary : "en";
 }
 
 export function setLocale(locale: UiLocale | null): void { selectedLocale = locale; }
-export function t(key: string): string { return messages[selectedLocale ?? getLocale()][key] ?? messages.en[key] ?? key; }
+export function t(key: string): string { return localeMessages[selectedLocale ?? getLocale()][key] ?? localeMessages.en[key] ?? key; }

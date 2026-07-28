@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { getLocale, setLocale, t } from "./i18n";
+import { getLocale, localeMessages, localeNames, setLocale, t } from "./i18n";
+import { contentMessages } from "../generated/content-locales";
 import { LANGUAGE_OPTIONS } from "./languages";
 
 describe("UI locale selection", () => {
@@ -17,5 +18,16 @@ describe("UI locale selection", () => {
     setLocale("zh-CN"); expect(t("uiLanguage")).toBe("界面语言");
     setLocale("fr"); expect(t("uiLanguage")).toBe("Langue de l’interface");
     setLocale(null);
+  });
+
+  it("keeps settings and in-page messages aligned for every supported locale", () => {
+    for (const language of LANGUAGE_OPTIONS) {
+      const locale = language.value as keyof typeof contentMessages;
+      expect(localeMessages[locale]).toBeDefined();
+      expect(localeNames[locale]).toBeTruthy();
+      expect(contentMessages[locale]).toBeDefined();
+      expect(contentMessages[locale].completion).toContain("{count}");
+      expect(contentMessages[locale].partialCompletion).toContain("{failed}");
+    }
   });
 });

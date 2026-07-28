@@ -1,8 +1,20 @@
 {
-  "extensionName": { "message": "AI大模型-沉浸式翻译-免费-极简" },
-  "extensionDescription": { "message": "使用您自己的 OpenAI 兼容 API 翻译选中文本或网页。" },
-  "actionTitle": { "message": "打开 AI大模型-沉浸式翻译-免费-极简 设置" },
-  "contextTranslatePage": { "message": "翻译此页面" },
-  "contextTranslateSelection": { "message": "翻译选中文字" },
-  "unsupportedPage": { "message": "浏览器扩展无法翻译此页面。" }
+  "extensionName": {
+    "message": "AI大模型-沉浸式翻译-免费-极简"
+  },
+  "extensionDescription": {
+    "message": "使用您自己的 OpenAI 兼容 API 翻译选中文本或网页。"
+  },
+  "actionTitle": {
+    "message": "打开 AI大模型-沉浸式翻译-免费-极简 设置"
+  },
+  "contextTranslatePage": {
+    "message": "翻译此页面"
+  },
+  "contextTranslateSelection": {
+    "message": "翻译选中文字"
+  },
+  "unsupportedPage": {
+    "message": "浏览器扩展无法翻译此页面。"
+  }
 }

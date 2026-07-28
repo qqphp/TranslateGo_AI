@@ -4,8 +4,12 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "generate:i18n": "node scripts/generate-i18n.mjs",
+    "prebuild": "npm run generate:i18n",
     "build": "tsc --noEmit && node scripts/build-icons.mjs && vite build && node scripts/validate-build.mjs",
+    "pretest": "npm run generate:i18n",
     "test": "vitest run",
+    "pretest:watch": "npm run generate:i18n",
     "test:watch": "vitest"
   },
   "devDependencies": {

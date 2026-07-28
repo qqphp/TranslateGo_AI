@@ -1,0 +1,20 @@
+{
+  "extensionName": {
+    "message": "AI大模型-沉浸式翻译-免费-极简"
+  },
+  "extensionDescription": {
+    "message": "แปลข้อความที่เลือกหรือหน้าเว็บด้วย API ที่เข้ากันได้กับ OpenAI ของคุณ"
+  },
+  "actionTitle": {
+    "message": "เปิดการตั้งค่าตัวแปล"
+  },
+  "contextTranslatePage": {
+    "message": "แปลหน้านี้"
+  },
+  "contextTranslateSelection": {
+    "message": "แปลข้อความที่เลือก"
+  },
+  "unsupportedPage": {
+    "message": "ส่วนขยายเบราว์เซอร์ไม่สามารถแปลหน้านี้ได้"
+  }
+}

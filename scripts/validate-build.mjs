@@ -1,4 +1,4 @@
-import { access, readFile } from "node:fs/promises";
+import { access, readFile, readdir } from "node:fs/promises";
 
 const content = await readFile(new URL("../dist/content.js", import.meta.url), "utf8");
 if (/^\s*import\b/m.test(content)) {
@@ -14,5 +14,17 @@ if (manifest.icons?.["16"] !== manifest.action?.default_icon?.["16"]) {
 }
 
 await Promise.all([16, 32, 48, 128].map((size) => access(new URL(`../dist/icons/icon-${size}.png`, import.meta.url))));
+
+const expectedLocales = ["ar", "de", "en", "es", "fr", "hi", "id", "it", "ja", "ko", "pt_BR", "ru", "th", "tr", "vi", "zh_CN", "zh_TW"];
+const builtLocales = (await readdir(new URL("../dist/_locales/", import.meta.url))).sort();
+if (JSON.stringify(builtLocales) !== JSON.stringify(expectedLocales)) {
+  throw new Error(`Built browser locales differ from the supported UI locales: ${builtLocales.join(", ")}`);
+}
+await Promise.all(builtLocales.map(async (locale) => {
+  const messages = JSON.parse(await readFile(new URL(`../dist/_locales/${locale}/messages.json`, import.meta.url), "utf8"));
+  for (const key of ["extensionName", "extensionDescription", "actionTitle", "contextTranslatePage", "contextTranslateSelection", "unsupportedPage"]) {
+    if (!messages[key]?.message) throw new Error(`Built locale ${locale} is missing ${key}.`);
+  }
+}));
 
 console.log("Validated MV3 build entrypoints.");

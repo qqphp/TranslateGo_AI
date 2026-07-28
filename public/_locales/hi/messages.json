@@ -1,0 +1,20 @@
+{
+  "extensionName": {
+    "message": "AI大模型-沉浸式翻译-免费-极简"
+  },
+  "extensionDescription": {
+    "message": "अपने OpenAI-संगत API से चुने हुए पाठ या वेबपेज का अनुवाद करें।"
+  },
+  "actionTitle": {
+    "message": "अनुवादक सेटिंग खोलें"
+  },
+  "contextTranslatePage": {
+    "message": "इस पृष्ठ का अनुवाद करें"
+  },
+  "contextTranslateSelection": {
+    "message": "चुने हुए पाठ का अनुवाद करें"
+  },
+  "unsupportedPage": {
+    "message": "ब्राउज़र एक्सटेंशन इस पृष्ठ का अनुवाद नहीं कर सकते।"
+  }
+}

@@ -1,4 +1,5 @@
 import type { PageNode, PageTaskType, RuntimeMessage, TaskSummary, TranslationMode } from "./shared/types";
+import { contentMessages } from "./generated/content-locales";
 
 const ATTR = "data-llm-web-translator";
 let currentMode: TranslationMode = "replace";
@@ -29,14 +30,26 @@ let selectionPopoverX = 16;
 let selectionPopoverY = 16;
 
 const language = (chrome.i18n?.getUILanguage?.() || navigator.language).toLowerCase();
-const locale = language.startsWith("zh-tw") || language.startsWith("zh-hk") ? "zh-TW" : language.startsWith("zh") ? "zh-CN" : language.startsWith("ja") ? "ja" : "en";
-const pageMessages = {
-  en: { translating: "Translating…", cancel: "Cancel", close: "Close", restore: "Restore original", openSettings: "Open settings", running: "Translation running", failed: "failed", cancelled: "cancelled", retry: "Retry failed", nodes: "text segments will be sent", requestLimit: (count: number) => `up to ${count} requests`, starting: "Starting translation…", newContent: "New content found. Adding translation…", completion: (count: number) => `Translation complete! ${count} text segments translated (continuing to watch for new content)`, partialCompletion: (count: number, failed: number) => `Translation complete! ${count} text segments translated, ${failed} failed (continuing to watch for new content)` },
-  "zh-CN": { translating: "正在翻译…", cancel: "取消", close: "关闭", restore: "恢复原文", openSettings: "打开设置", running: "正在翻译", failed: "失败", cancelled: "已取消", retry: "重试失败项", nodes: "段文本将被发送", requestLimit: (count: number) => `最多 ${count} 次请求`, starting: "正在开始翻译…", newContent: "发现新内容，开始追加翻译…", completion: (count: number) => `翻译完成！共翻译 ${count} 段文本（将持续监听新内容）`, partialCompletion: (count: number, failed: number) => `翻译完成！共翻译 ${count} 段文本，${failed} 段失败（将持续监听新内容）` },
-  "zh-TW": { translating: "正在翻譯…", cancel: "取消", close: "關閉", restore: "恢復原文", openSettings: "開啟設定", running: "正在翻譯", failed: "失敗", cancelled: "已取消", retry: "重試失敗項", nodes: "段文字將被傳送", requestLimit: (count: number) => `最多 ${count} 次請求`, starting: "正在開始翻譯…", newContent: "發現新內容，開始追加翻譯…", completion: (count: number) => `翻譯完成！共翻譯 ${count} 段文字（將持續監聽新內容）`, partialCompletion: (count: number, failed: number) => `翻譯完成！共翻譯 ${count} 段文字，${failed} 段失敗（將持續監聽新內容）` },
-  ja: { translating: "翻訳中…", cancel: "キャンセル", close: "閉じる", restore: "原文を復元", openSettings: "設定を開く", running: "翻訳中", failed: "失敗", cancelled: "キャンセル済み", retry: "失敗項目を再試行", nodes: "件のテキストを送信", requestLimit: (count: number) => `最大 ${count} リクエスト`, starting: "翻訳を開始しています…", newContent: "新しい内容を検出しました。追加翻訳を開始します…", completion: (count: number) => `翻訳完了！合計 ${count} 件のテキストを翻訳しました（新しい内容の監視を継続します）`, partialCompletion: (count: number, failed: number) => `翻訳完了！合計 ${count} 件を翻訳、${failed} 件が失敗しました（新しい内容の監視を継続します）` }
-} as const;
-const ui = pageMessages[locale];
+type ContentLocale = keyof typeof contentMessages;
+function resolveContentLocale(value: string): ContentLocale {
+  const normalized = value.toLowerCase();
+  if (normalized.startsWith("zh-tw") || normalized.startsWith("zh-hk") || normalized.startsWith("zh-hant")) return "zh-TW";
+  if (normalized.startsWith("zh")) return "zh-CN";
+  const primary = normalized.split("-")[0];
+  return Object.prototype.hasOwnProperty.call(contentMessages, primary) ? primary as ContentLocale : "en";
+}
+const browserLocale = resolveContentLocale(language);
+let ui = contentMessages[browserLocale];
+function applyLocalePreference(preference: unknown) {
+  const locale = typeof preference === "string" && preference !== "auto" ? resolveContentLocale(preference) : browserLocale;
+  ui = contentMessages[locale];
+}
+const storedSettings = chrome.storage?.local?.get("settings");
+void storedSettings?.then((value) => applyLocalePreference((value.settings as { uiLocale?: unknown } | undefined)?.uiLocale));
+chrome.storage?.onChanged?.addListener((changes, areaName) => {
+  if (areaName === "local" && changes.settings?.newValue) applyLocalePreference((changes.settings.newValue as { uiLocale?: unknown }).uiLocale);
+});
+const formatMessage = (template: string, values: Record<string, string | number>) => template.replace(/\{([a-z]+)\}/g, (placeholder, key: string) => key in values ? String(values[key]) : placeholder);
 
 type IconName = "close" | "cancel" | "restore" | "settings" | "retry";
 const iconPaths: Record<IconName, string> = {
@@ -315,7 +328,7 @@ chrome.runtime.onMessage.addListener((message: RuntimeMessage) => {
     const nodes = collectNodes(message.mode);
     startDynamicMonitoring();
     let cancelled = false;
-    showPanel(`${nodes.length} ${ui.nodes}; ${ui.requestLimit(message.maxRequests)}. ${ui.starting}`, [[ui.cancel, () => { cancelled = true; stopDynamicMonitoring(); if (pageStartTimer !== null) window.clearTimeout(pageStartTimer); pageStartTimer = null; }, "danger", "cancel"]]);
+    showPanel(`${nodes.length} ${ui.nodes}; ${formatMessage(ui.requestLimit, { count: message.maxRequests })}. ${ui.starting}`, [[ui.cancel, () => { cancelled = true; stopDynamicMonitoring(); if (pageStartTimer !== null) window.clearTimeout(pageStartTimer); pageStartTimer = null; }, "danger", "cancel"]]);
     pageStartTimer = window.setTimeout(() => { pageStartTimer = null; if (!cancelled) { taskInProgress = true; chrome.runtime.sendMessage({ kind: "startPage", nodes } satisfies RuntimeMessage); } }, 350);
   }
   if (message.kind === "translateSelectionFromMenu") translateSelectionFromMenu(message.text);
@@ -333,6 +346,6 @@ function showTaskSummary(summary: TaskSummary) {
   if (summary.taskId !== activeTaskId) return;
   cumulativeTranslated += summary.succeeded;
   const failedPreview = summary.failed.slice(0, 3).map((node) => node.text.trim().slice(0, 40)).filter(Boolean).join(" · ");
-  const message = summary.cancelled ? `${ui.cancelled}: ${summary.succeeded}/${summary.total}.` : summary.failed.length ? ui.partialCompletion(cumulativeTranslated, summary.failed.length) : ui.completion(cumulativeTranslated);
+  const message = summary.cancelled ? `${ui.cancelled}: ${summary.succeeded}/${summary.total}.` : summary.failed.length ? formatMessage(ui.partialCompletion, { count: cumulativeTranslated, failed: summary.failed.length }) : formatMessage(ui.completion, { count: cumulativeTranslated });
   showPanel(`${message}${failedPreview ? ` ${ui.failed}: ${failedPreview}` : ""}`, [[ui.restore, restorePage, "secondary", "restore"], ...(summary.failed.length ? [[ui.retry, () => { taskInProgress = true; chrome.runtime.sendMessage({ kind: "retryNodes", nodes: summary.failed } satisfies RuntimeMessage); }, "secondary", "retry"] as PanelButton] : [])]);
 }

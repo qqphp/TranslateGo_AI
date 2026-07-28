@@ -1,0 +1,20 @@
+{
+  "extensionName": {
+    "message": "AI大模型-沉浸式翻译-免费-极简"
+  },
+  "extensionDescription": {
+    "message": "Переводите выделенный текст или веб-страницы через собственный OpenAI-совместимый API."
+  },
+  "actionTitle": {
+    "message": "Открыть настройки переводчика"
+  },
+  "contextTranslatePage": {
+    "message": "Перевести эту страницу"
+  },
+  "contextTranslateSelection": {
+    "message": "Перевести выделенный текст"
+  },
+  "unsupportedPage": {
+    "message": "Расширения браузера не могут переводить эту страницу."
+  }
+}

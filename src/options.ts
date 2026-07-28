@@ -1,6 +1,6 @@
 import { translate } from "./shared/api";
 import { getSettings, saveSettings, validateBaseUrl } from "./shared/storage";
-import { setLocale, t } from "./shared/i18n";
+import { localeNames, setLocale, t } from "./shared/i18n";
 import { LANGUAGE_OPTIONS, normalizeLanguage } from "./shared/languages";
 import type { Profile, Settings, TranslationMode, UiLocale, UiLocalePreference } from "./shared/types";
 import "./options.css";
@@ -38,7 +38,6 @@ const iconPaths: Record<IconName, string> = {
 
 const icon = (name: IconName, className = "icon") => `<svg class="${className}" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${iconPaths[name]}</svg>`;
 const buttonContent = (name: IconName, label: string) => `${icon(name)}<span>${escape(label)}</span>`;
-const uiLocaleNames: Record<UiLocale, string> = { "zh-CN": "简体中文", "zh-TW": "繁體中文", en: "English", ja: "日本語", ko: "한국어", fr: "Français", de: "Deutsch", es: "Español", pt: "Português", ru: "Русский", ar: "العربية", it: "Italiano", th: "ไทย", vi: "Tiếng Việt", id: "Bahasa Indonesia", hi: "हिन्दी", tr: "Türkçe" };
 const newProfile = (): Profile => ({ id: crypto.randomUUID(), name: "", baseUrl: "", apiKey: "", model: "", sourceLanguage: "auto", targetLanguage: "zh-CN", mode: "replace" });
 const escape = (value: string) => value.replace(/[&<>"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[char]!);
 const notifyProfileChange = () => chrome.runtime.sendMessage({ kind: "profilesChanged" }).catch(() => undefined);
@@ -60,7 +59,7 @@ function languageOptions(selected: string, includeAuto: boolean): string {
 }
 
 function uiLanguageOptions(selected: UiLocalePreference | undefined): string {
-  return `<option value="auto" ${!selected || selected === "auto" ? "selected" : ""}>${t("followBrowser")}</option>` + LANGUAGE_OPTIONS.map((option) => `<option value="${option.value}" ${selected === option.value ? "selected" : ""}>${uiLocaleNames[option.value as UiLocale]}</option>`).join("");
+  return `<option value="auto" ${!selected || selected === "auto" ? "selected" : ""}>${t("followBrowser")}</option>` + LANGUAGE_OPTIONS.map((option) => `<option value="${option.value}" ${selected === option.value ? "selected" : ""}>${localeNames[option.value as UiLocale]}</option>`).join("");
 }
 
 function showDialog(message: string, confirm = false): Promise<boolean> {

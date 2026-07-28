@@ -1,0 +1,20 @@
+{
+  "extensionName": {
+    "message": "AI大模型-沉浸式翻译-免费-极简"
+  },
+  "extensionDescription": {
+    "message": "자체 OpenAI 호환 API로 선택한 텍스트나 웹페이지를 번역합니다."
+  },
+  "actionTitle": {
+    "message": "번역기 설정 열기"
+  },
+  "contextTranslatePage": {
+    "message": "이 페이지 번역"
+  },
+  "contextTranslateSelection": {
+    "message": "선택한 텍스트 번역"
+  },
+  "unsupportedPage": {
+    "message": "브라우저 확장 프로그램이 이 페이지를 번역할 수 없습니다."
+  }
+}

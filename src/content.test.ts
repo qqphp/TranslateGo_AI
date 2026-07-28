@@ -135,6 +135,21 @@ describe("page translation entry", () => {
     handler({ kind: "restorePage" });
   });
 
+  it("uses the saved interface language for the in-page panel", async () => {
+    const storageChangeListener = vi.fn();
+    globalThis.chrome = {
+      runtime: { onMessage: { addListener }, sendMessage, openOptionsPage: vi.fn() },
+      i18n: { getUILanguage: () => "en" },
+      storage: { local: { get: vi.fn(async () => ({ settings: { uiLocale: "fr" } })) }, onChanged: { addListener: storageChangeListener } }
+    } as unknown as typeof chrome;
+    await import("./content");
+    await vi.waitFor(() => expect(storageChangeListener).toHaveBeenCalledOnce());
+    const handler = addListener.mock.calls[0][0] as (message: unknown) => void;
+    handler({ kind: "preparePage", mode: "replace", maxRequests: 200 });
+    expect(document.querySelector(".llmwt-panel-message")?.textContent).toContain("jusqu’à 200 requêtes");
+    handler({ kind: "restorePage" });
+  });
+
   it("does not show a floating button and translates selection only from the context menu", async () => {
     Range.prototype.getBoundingClientRect = () => new DOMRect(10, 10, 40, 20);
     await import("./content");

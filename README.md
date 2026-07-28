@@ -19,3 +19,7 @@ Open `chrome://extensions` or `edge://extensions`, enable developer mode, choose
 4. Use the page panel to monitor progress, cancel, retry failures, or restore the original page.
 
 Profiles and API keys are stored only in `chrome.storage.local`. Page text and translations are not persisted.
+
+## Localization
+
+Maintain translations only in `src/shared/i18n.ts` (base locales) and `src/shared/i18n-locales.ts` (additional locales). Run `npm run generate:i18n` to validate the catalog and regenerate the in-page message module plus Chrome/Edge `_locales` bundles. The test and build commands run this generator automatically; do not edit generated files directly.
