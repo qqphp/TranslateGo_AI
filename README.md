@@ -1,25 +1,137 @@
-# AI大模型-沉浸式翻译-免费-极简
+# AI 大模型沉浸式翻译
 
-A Manifest V3 extension for Chrome and Microsoft Edge that translates selected text or visible webpage text through the user's own OpenAI-compatible API.
+[简体中文](README.md) · [English](README.en.md)
 
-## Build and load
+一款适用于 Chrome 和 Microsoft Edge 的轻量级 Manifest V3 翻译扩展。使用你自己的 OpenAI 兼容 API，在不离开当前页面的情况下完成文本、划词和整页翻译。
+
+![AI 大模型沉浸式翻译演示](public/assets/demo.gif)
+
+## 功能特性
+
+- **独立文本翻译**：打开插件后默认进入“翻译”页，支持源语言、目标语言、字符统计、复制、清空和重新翻译。
+- **翻译历史**：成功翻译后在本地保留最近 30 条记录，包括原文、译文、源语言和目标语言。
+- **划词翻译**：选中网页文字后，通过右键菜单直接查看译文。
+- **整页翻译**：提取页面中的可见正文，跳过代码、表单控件、按钮和隐藏内容。
+- **两种展示模式**：支持替换原文和保留原文的双语对照模式。
+- **动态内容翻译**：持续监听懒加载或后续插入的页面文本，并追加翻译。
+- **批量与并发处理**：每个请求最多合并 10 个文本节点或 6,000 个字符，最多 5 路并发，并对失败请求自动重试。
+- **大页面支持**：单次页面任务最多允许 200 个模型请求；超出部分会明确标记失败，不会静默截断。
+- **多语言界面**：提供 17 种界面和目标语言，源语言支持自动检测。
+- **本地优先**：没有产品后端、广告或遥测，模型配置和翻译历史仅保存在浏览器本地。
+
+## 支持的语言
+
+简体中文、繁体中文、英语、日语、韩语、法语、德语、西班牙语、葡萄牙语、俄语、阿拉伯语、意大利语、泰语、越南语、印尼语、印地语和土耳其语。
+
+## 安装
+
+### 从源码构建
+
+请先安装 Node.js 和 npm，然后执行：
 
 ```powershell
 npm install
 npm run build
 ```
 
-Open `chrome://extensions` or `edge://extensions`, enable developer mode, choose **Load unpacked**, and select the generated `dist` directory. Reload the extension and refresh existing webpages after every new build.
+构建产物位于 `dist` 目录。
 
-## Use
+### 加载到浏览器
 
-1. Click the toolbar icon and create a profile with an HTTPS Base URL, API key, model, source language, target language, and translation mode.
-2. Test or save the profile. Clicking a profile makes it active and restores translated pages before the new profile is used.
-3. Select webpage text and choose **Translate selected text** from the context menu, or use the page context menu for full-page translation.
-4. Use the page panel to monitor progress, cancel, retry failures, or restore the original page.
+1. 打开 `chrome://extensions` 或 `edge://extensions`。
+2. 启用“开发者模式”。
+3. 点击“加载已解压的扩展程序”。
+4. 选择项目生成的 `dist` 目录。
 
-Profiles, API keys, and the 30 most recent successful translations entered on the Translate page are stored only in `chrome.storage.local`. Translated webpage content is not persisted.
+重新构建后，需要在扩展管理页面重新加载插件；已打开的网页也需要刷新。
 
-## Localization
+## 使用方法
 
-Maintain translations only in `src/shared/i18n.ts` (base locales) and `src/shared/i18n-locales.ts` (additional locales). Run `npm run generate:i18n` to validate the catalog and regenerate the in-page message module plus Chrome/Edge `_locales` bundles. The test and build commands run this generator automatically; do not edit generated files directly.
+### 1. 配置模型
+
+点击扩展图标，切换到“配置”页并填写：
+
+- 配置名称
+- OpenAI 兼容 API 的 Base URL，例如 `https://api.example.com/v1`
+- API Key
+- 模型名称
+- 源语言和目标语言
+- 翻译模式：替换原文或双语对照
+
+Base URL 必须使用 HTTPS；仅 `localhost`、`127.0.0.1` 和 `[::1]` 允许 HTTP。建议先点击“测试连接”，确认连接成功后保存并启用配置。
+
+接口需要兼容 OpenAI 的 `POST /chat/completions` 请求格式。
+
+### 2. 翻译独立文本
+
+打开扩展后默认显示“翻译”页。输入文本并选择语言后点击“翻译”。只有已配置并启用完整模型时，翻译按钮才可使用。
+
+译文支持复制和重新翻译。成功记录会显示在右侧历史区域，最多保留最近 30 条。
+
+### 3. 翻译网页
+
+- **划词翻译**：选中文字，右键选择“翻译选中文字”。
+- **整页翻译**：在页面空白区域右键选择“翻译此页面”。
+- **任务控制**：页面浮层会显示进度，并支持取消、重试失败项和恢复原文。
+
+浏览器限制页面无法注入扩展脚本，例如 `chrome://`、`edge://`、其他扩展页面以及 Chrome 应用商店。
+
+## 隐私说明
+
+- 页面文本和手动输入的文本仅在你主动翻译时发送到当前配置的 API。
+- 项目没有中转服务器或产品后端。
+- API Key、模型配置和翻译页最近 30 条成功记录存储在 `chrome.storage.local`，不会通过浏览器同步。
+- 网页原文、网页译文和完整 API 请求体不会持久化。
+- 不收集遥测、分析数据或使用统计。
+
+更多信息请参阅 [PRIVACY.md](PRIVACY.md)。
+
+## 开发
+
+### 常用命令
+
+```powershell
+# 生成并校验国际化资源
+npm run generate:i18n
+
+# 运行全部测试
+npm test
+
+# 监听测试
+npm run test:watch
+
+# 类型检查并生成生产构建
+npm run build
+```
+
+`npm test` 和 `npm run build` 会自动执行国际化资源生成与校验。
+
+### 项目结构
+
+```text
+src/
+├─ background.ts                 # 后台任务、右键菜单、并发与重试
+├─ content.ts                    # 页面文本提取、翻译展示和动态内容监听
+├─ options.ts                    # 翻译、配置、历史记录和说明页面
+└─ shared/
+   ├─ api.ts                     # OpenAI 兼容 API 调用与结果清洗
+   ├─ batching.ts                # 页面节点批处理与请求上限
+   ├─ i18n.ts                    # 基础语言目录
+   ├─ i18n-locales.ts            # 其他语言目录
+   ├─ storage.ts                 # 浏览器本地配置存储
+   └─ translation-history.ts     # 最近 30 条翻译历史
+public/
+├─ _locales/                     # 自动生成的浏览器原生国际化资源
+├─ assets/demo.gif               # 项目演示
+└─ manifest.json                 # Manifest V3 配置
+scripts/                         # 国际化生成、图标构建和产物校验
+```
+
+## 国际化维护
+
+国际化文案的唯一维护入口是：
+
+- `src/shared/i18n.ts`：英语、简体中文、繁体中文和日语。
+- `src/shared/i18n-locales.ts`：其余 13 种语言。
+
+请勿直接修改 `src/generated/content-locales.ts` 或 `public/_locales`。运行 `npm run generate:i18n` 后，它们会根据统一语言目录自动生成。`public/_locales` 仍然用于扩展名称、描述、工具栏提示和右键菜单等浏览器原生文案。
