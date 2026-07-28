@@ -1,12 +1,12 @@
 import { translateBatch, translate } from "./shared/api";
-import { MAX_REQUESTS_PER_PAGE_TASK, NODES_PER_REQUEST } from "./shared/constants";
+import { planTranslationBatches } from "./shared/batching";
+import { MAX_REQUESTS_PER_PAGE_TASK } from "./shared/constants";
 import { getActiveProfile } from "./shared/storage";
 import { withRetries } from "./shared/retry";
 import type { PageNode, PageTaskType, Profile, RuntimeMessage, TaskSummary } from "./shared/types";
 
 const MAX_RETRIES = 3;
 const CONCURRENCY = 5;
-const BATCH_SIZE = NODES_PER_REQUEST;
 interface Task { controller: AbortController; tabId: number; cancelled: boolean; requestsStarted: number; profile: Profile; }
 const tasks = new Map<string, Task>();
 const selectionTasks = new Map<string, { controller: AbortController; tabId: number }>();
@@ -35,49 +35,31 @@ async function runPageTask(tabId: number, nodes: PageNode[], taskType: PageTaskT
   tasks.set(taskId, task);
   const summary: TaskSummary = { taskId, total: nodes.length, succeeded: 0, failed: [], cancelled: false };
   await send(tabId, { kind: "taskStarted", taskId, total: nodes.length, mode: profile.mode, taskType });
-  const batches: PageNode[][] = [];
-  for (let index = 0; index < nodes.length; index += BATCH_SIZE) batches.push(nodes.slice(index, index + BATCH_SIZE));
+  const { batches, accepted, overflow } = planTranslationBatches(nodes);
+  if (overflow.length) summary.failed.push(...overflow);
+  summary.total = accepted.length + overflow.length;
+  for (const node of overflow) await send(tabId, { kind: "nodeFailed", taskId, node, error: `This page task reached its ${MAX_REQUESTS_PER_PAGE_TASK}-request limit.` });
   let index = 0;
-  let nextToDisplay = 0;
-  const completed = new Map<number, { nodes: PageNode[]; translations?: Map<string, string>; error?: string }>();
-  let flushChain = Promise.resolve();
-  const flushCompleted = () => {
-    flushChain = flushChain.then(async () => {
-      while (!task.cancelled && completed.has(nextToDisplay)) {
-        const result = completed.get(nextToDisplay)!;
-        completed.delete(nextToDisplay);
-        nextToDisplay += 1;
-        if (result.translations) {
-          for (const node of result.nodes) {
-            summary.succeeded += 1;
-            await send(tabId, { kind: "nodeResult", taskId, nodeId: node.id, text: result.translations.get(node.id)! });
-          }
-        } else {
-          for (const node of result.nodes) {
-            summary.failed.push(node);
-            await send(tabId, { kind: "nodeFailed", taskId, node, error: result.error ?? "Translation failed." });
-          }
-        }
-      }
-    });
-    return flushChain;
-  };
   const worker = async () => {
     while (!task.cancelled && index < batches.length) {
       const batchIndex = index++;
       const batch = batches[batchIndex];
       try {
         const translations = await translateBatchWithRetry(batch, task);
-        if (!task.cancelled) { completed.set(batchIndex, { nodes: batch, translations }); await flushCompleted(); }
+        if (!task.cancelled) for (const node of batch) {
+          summary.succeeded += 1;
+          await send(tabId, { kind: "nodeResult", taskId, nodeId: node.id, text: translations.get(node.id)! });
+        }
       } catch (error) {
         if (task.cancelled || task.controller.signal.aborted) break;
-        completed.set(batchIndex, { nodes: batch, error: error instanceof Error ? error.message : "Translation failed." });
-        await flushCompleted();
+        for (const node of batch) {
+          summary.failed.push(node);
+          await send(tabId, { kind: "nodeFailed", taskId, node, error: error instanceof Error ? error.message : "Translation failed." });
+        }
       }
     }
   };
   await Promise.all(Array.from({ length: Math.min(CONCURRENCY, batches.length) }, worker));
-  await flushChain;
   summary.cancelled = task.cancelled;
   tasks.delete(taskId);
   await send(tabId, { kind: "taskFinished", summary });
@@ -101,7 +83,11 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
     if (text) send(tab.id, { kind: "translateSelectionFromMenu", text });
     return;
   }
-  if (info.menuItemId === "translate-page") send(tab.id, { kind: "preparePage", maxNodes: MAX_REQUESTS_PER_PAGE_TASK * NODES_PER_REQUEST, maxRequests: MAX_REQUESTS_PER_PAGE_TASK });
+  if (info.menuItemId === "translate-page") {
+    void activeProfileOrError()
+      .then((profile) => send(tab.id!, { kind: "preparePage", mode: profile.mode, maxRequests: MAX_REQUESTS_PER_PAGE_TASK }))
+      .catch((error) => send(tab.id!, { kind: "taskError", error: error instanceof Error ? error.message : "Unable to start translation." }));
+  }
 });
 function cancelTabWork(tabId: number) {
   for (const task of tasks.values()) if (task.tabId === tabId) { task.cancelled = true; task.controller.abort(); }

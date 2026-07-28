@@ -28,7 +28,7 @@ export type RuntimeMessage =
   | { kind: "cancelTask"; taskId: string }
   | { kind: "retryNodes"; nodes: PageNode[] }
   | { kind: "restorePage" }
-  | { kind: "preparePage"; maxNodes: number; maxRequests: number }
+  | { kind: "preparePage"; mode: TranslationMode; maxRequests: number }
   | { kind: "pagePrepared"; count: number }
   | { kind: "selectionResult"; requestId: string; text: string }
   | { kind: "selectionError"; requestId: string; error: string }

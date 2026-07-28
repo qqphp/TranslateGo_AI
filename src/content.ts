@@ -3,8 +3,10 @@ import type { PageNode, PageTaskType, RuntimeMessage, TaskSummary, TranslationMo
 const ATTR = "data-llm-web-translator";
 let currentMode: TranslationMode = "replace";
 let activeTaskId: string | null = null;
-const nodeMap = new Map<string, Text>();
+type TranslationTarget = { kind: "text"; node: Text } | { kind: "paragraph"; element: HTMLElement };
+const nodeMap = new Map<string, TranslationTarget>();
 const originalText = new Map<Text, string>();
+let preservedTranslations = new WeakMap<HTMLElement, HTMLElement>();
 let popover: HTMLDivElement | null = null;
 let progressPanel: HTMLDivElement | null = null;
 let progressLabel: HTMLDivElement | null = null;
@@ -17,10 +19,9 @@ let selectionRequestId: string | null = null;
 let pageStartTimer: number | null = null;
 let nextNodeId = 0;
 let trackedText = new WeakMap<Text, string>();
-const pendingDynamicNodes = new Map<Text, PageNode>();
+const pendingDynamicNodes = new Set<Text>();
 let dynamicObserver: MutationObserver | null = null;
 let dynamicTimer: number | null = null;
-let maxDynamicNodes = 0;
 let watchingDynamicContent = false;
 let taskInProgress = false;
 let cumulativeTranslated = 0;
@@ -30,10 +31,10 @@ let selectionPopoverY = 16;
 const language = (chrome.i18n?.getUILanguage?.() || navigator.language).toLowerCase();
 const locale = language.startsWith("zh-tw") || language.startsWith("zh-hk") ? "zh-TW" : language.startsWith("zh") ? "zh-CN" : language.startsWith("ja") ? "ja" : "en";
 const pageMessages = {
-  en: { translating: "Translating…", cancel: "Cancel", close: "Close", restore: "Restore original", openSettings: "Open settings", running: "Translation running", failed: "failed", cancelled: "cancelled", retry: "Retry failed", nodes: "text nodes will be sent", requests: "requests", remaining: "nodes will not be sent", starting: "Starting translation…", newContent: "New content found. Adding translation…", completion: (count: number) => `Translation complete! ${count} text segments translated (continuing to watch for new content)`, partialCompletion: (count: number, failed: number) => `Translation complete! ${count} text segments translated, ${failed} failed (continuing to watch for new content)` },
-  "zh-CN": { translating: "正在翻译…", cancel: "取消", close: "关闭", restore: "恢复原文", openSettings: "打开设置", running: "正在翻译", failed: "失败", cancelled: "已取消", retry: "重试失败项", nodes: "个文本节点将被发送", requests: "次请求", remaining: "个节点不会发送", starting: "正在开始翻译…", newContent: "发现新内容，开始追加翻译…", completion: (count: number) => `翻译完成！共翻译 ${count} 段文本（将持续监听新内容）`, partialCompletion: (count: number, failed: number) => `翻译完成！共翻译 ${count} 段文本，${failed} 段失败（将持续监听新内容）` },
-  "zh-TW": { translating: "正在翻譯…", cancel: "取消", close: "關閉", restore: "恢復原文", openSettings: "開啟設定", running: "正在翻譯", failed: "失敗", cancelled: "已取消", retry: "重試失敗項", nodes: "個文字節點將被傳送", requests: "次請求", remaining: "個節點不會傳送", starting: "正在開始翻譯…", newContent: "發現新內容，開始追加翻譯…", completion: (count: number) => `翻譯完成！共翻譯 ${count} 段文字（將持續監聽新內容）`, partialCompletion: (count: number, failed: number) => `翻譯完成！共翻譯 ${count} 段文字，${failed} 段失敗（將持續監聽新內容）` },
-  ja: { translating: "翻訳中…", cancel: "キャンセル", close: "閉じる", restore: "原文を復元", openSettings: "設定を開く", running: "翻訳中", failed: "失敗", cancelled: "キャンセル済み", retry: "失敗項目を再試行", nodes: "個のテキストノードを送信", requests: "リクエスト", remaining: "個のノードは送信されません", starting: "翻訳を開始しています…", newContent: "新しい内容を検出しました。追加翻訳を開始します…", completion: (count: number) => `翻訳完了！合計 ${count} 件のテキストを翻訳しました（新しい内容の監視を継続します）`, partialCompletion: (count: number, failed: number) => `翻訳完了！合計 ${count} 件を翻訳、${failed} 件が失敗しました（新しい内容の監視を継続します）` }
+  en: { translating: "Translating…", cancel: "Cancel", close: "Close", restore: "Restore original", openSettings: "Open settings", running: "Translation running", failed: "failed", cancelled: "cancelled", retry: "Retry failed", nodes: "text segments will be sent", requestLimit: (count: number) => `up to ${count} requests`, starting: "Starting translation…", newContent: "New content found. Adding translation…", completion: (count: number) => `Translation complete! ${count} text segments translated (continuing to watch for new content)`, partialCompletion: (count: number, failed: number) => `Translation complete! ${count} text segments translated, ${failed} failed (continuing to watch for new content)` },
+  "zh-CN": { translating: "正在翻译…", cancel: "取消", close: "关闭", restore: "恢复原文", openSettings: "打开设置", running: "正在翻译", failed: "失败", cancelled: "已取消", retry: "重试失败项", nodes: "段文本将被发送", requestLimit: (count: number) => `最多 ${count} 次请求`, starting: "正在开始翻译…", newContent: "发现新内容，开始追加翻译…", completion: (count: number) => `翻译完成！共翻译 ${count} 段文本（将持续监听新内容）`, partialCompletion: (count: number, failed: number) => `翻译完成！共翻译 ${count} 段文本，${failed} 段失败（将持续监听新内容）` },
+  "zh-TW": { translating: "正在翻譯…", cancel: "取消", close: "關閉", restore: "恢復原文", openSettings: "開啟設定", running: "正在翻譯", failed: "失敗", cancelled: "已取消", retry: "重試失敗項", nodes: "段文字將被傳送", requestLimit: (count: number) => `最多 ${count} 次請求`, starting: "正在開始翻譯…", newContent: "發現新內容，開始追加翻譯…", completion: (count: number) => `翻譯完成！共翻譯 ${count} 段文字（將持續監聽新內容）`, partialCompletion: (count: number, failed: number) => `翻譯完成！共翻譯 ${count} 段文字，${failed} 段失敗（將持續監聽新內容）` },
+  ja: { translating: "翻訳中…", cancel: "キャンセル", close: "閉じる", restore: "原文を復元", openSettings: "設定を開く", running: "翻訳中", failed: "失敗", cancelled: "キャンセル済み", retry: "失敗項目を再試行", nodes: "件のテキストを送信", requestLimit: (count: number) => `最大 ${count} リクエスト`, starting: "翻訳を開始しています…", newContent: "新しい内容を検出しました。追加翻訳を開始します…", completion: (count: number) => `翻訳完了！合計 ${count} 件のテキストを翻訳しました（新しい内容の監視を継続します）`, partialCompletion: (count: number, failed: number) => `翻訳完了！合計 ${count} 件を翻訳、${failed} 件が失敗しました（新しい内容の監視を継続します）` }
 } as const;
 const ui = pageMessages[locale];
 
@@ -56,7 +57,7 @@ function createIcon(name: IconName) {
 
 function addStyles() {
   const style = document.createElement("style");
-  style.textContent = `[${ATTR}]{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.4;box-sizing:border-box}.llmwt-icon{display:block;width:16px;height:16px;flex:none}.llmwt-float{position:fixed;z-index:2147483647;display:inline-flex;align-items:center;gap:6px;border:0;border-radius:18px;background:#2563eb;color:#fff;padding:8px 12px;box-shadow:0 4px 14px #0004;font:650 13px/1.2 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;cursor:pointer;transition:background-color .16s,transform .16s}.llmwt-float:hover{background:#1d4ed8;transform:translateY(-1px)}.llmwt-float:focus-visible{outline:3px solid #93c5fd;outline-offset:2px}.llmwt-popover{position:fixed;z-index:2147483647;max-width:360px;background:#111827;color:#fff;border-radius:9px;padding:12px 38px 12px 13px;box-shadow:0 6px 20px #0005;white-space:pre-wrap}.llmwt-popover-close{position:absolute;right:8px;top:8px;width:24px;height:24px;display:grid;place-items:center;padding:0;border:0;border-radius:6px;background:#ffffff14;color:#fff;cursor:pointer}.llmwt-popover-close:hover{background:#ffffff28}.llmwt-popover-close .llmwt-icon{width:14px;height:14px}.llmwt-panel{position:fixed;right:20px;bottom:20px;z-index:2147483647;width:min(340px,calc(100vw - 40px));background:#fff;color:#111827;border:1px solid #e2e8f0;border-radius:14px;padding:16px;box-shadow:0 14px 38px #0f172a2e}.llmwt-panel-message{font-size:14px;color:#334155}.llmwt-panel-notice{margin-bottom:12px;padding:9px 10px;border-radius:8px;background:#eff6ff;color:#1d4ed8;font-size:13px;font-weight:650}.llmwt-panel-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}.llmwt-action{appearance:none;display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid transparent;border-radius:8px;padding:8px 13px;font:600 13px/1.2 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;cursor:pointer;transition:background-color .16s,border-color .16s,box-shadow .16s,transform .16s}.llmwt-action:hover{transform:translateY(-1px)}.llmwt-action:focus-visible{outline:3px solid #93c5fd;outline-offset:2px}.llmwt-secondary{background:#f1f5f9;color:#334155;border-color:#cbd5e1}.llmwt-secondary:hover{background:#e2e8f0;border-color:#94a3b8}.llmwt-danger{background:#dc2626;color:#fff;border-color:#dc2626}.llmwt-danger:hover{background:#b91c1c;border-color:#b91c1c;box-shadow:0 4px 10px #dc262633}.llmwt-primary{background:#2563eb;color:#fff;border-color:#2563eb}.llmwt-primary:hover{background:#1d4ed8;border-color:#1d4ed8}.llmwt-progress-head{display:flex;align-items:center;justify-content:space-between;gap:12px}.llmwt-progress-label{min-width:0;font-size:14px;font-weight:600;color:#1e293b}.llmwt-progress-percent{flex:none;color:#2563eb;font-size:14px;font-weight:700;font-variant-numeric:tabular-nums}.llmwt-progress-track{height:9px;margin-top:11px;overflow:hidden;border-radius:999px;background:#e2e8f0}.llmwt-progress-bar{height:100%;width:0;border-radius:inherit;background:linear-gradient(90deg,#2563eb,#38bdf8);box-shadow:0 0 8px #38bdf866;transition:width .2s ease}.llmwt-translation{display:inline;margin-left:.35em;color:#1d4ed8;font-style:italic}`;
+  style.textContent = `[${ATTR}]{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.4;box-sizing:border-box}.llmwt-icon{display:block;width:16px;height:16px;flex:none}.llmwt-float{position:fixed;z-index:2147483647;display:inline-flex;align-items:center;gap:6px;border:0;border-radius:18px;background:#2563eb;color:#fff;padding:8px 12px;box-shadow:0 4px 14px #0004;font:650 13px/1.2 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;cursor:pointer;transition:background-color .16s,transform .16s}.llmwt-float:hover{background:#1d4ed8;transform:translateY(-1px)}.llmwt-float:focus-visible{outline:3px solid #93c5fd;outline-offset:2px}.llmwt-popover{position:fixed;z-index:2147483647;max-width:360px;background:#111827;color:#fff;border-radius:9px;padding:12px 38px 12px 13px;box-shadow:0 6px 20px #0005;white-space:pre-wrap}.llmwt-popover-close{position:absolute;right:8px;top:8px;width:24px;height:24px;display:grid;place-items:center;padding:0;border:0;border-radius:6px;background:#ffffff14;color:#fff;cursor:pointer}.llmwt-popover-close:hover{background:#ffffff28}.llmwt-popover-close .llmwt-icon{width:14px;height:14px}.llmwt-panel{position:fixed;right:20px;bottom:20px;z-index:2147483647;width:min(340px,calc(100vw - 40px));background:#fff;color:#111827;border:1px solid #e2e8f0;border-radius:14px;padding:16px;box-shadow:0 14px 38px #0f172a2e}.llmwt-panel-message{font-size:14px;color:#334155}.llmwt-panel-notice{margin-bottom:12px;padding:9px 10px;border-radius:8px;background:#eff6ff;color:#1d4ed8;font-size:13px;font-weight:650}.llmwt-panel-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}.llmwt-action{appearance:none;display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid transparent;border-radius:8px;padding:8px 13px;font:600 13px/1.2 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;cursor:pointer;transition:background-color .16s,border-color .16s,box-shadow .16s,transform .16s}.llmwt-action:hover{transform:translateY(-1px)}.llmwt-action:focus-visible{outline:3px solid #93c5fd;outline-offset:2px}.llmwt-secondary{background:#f1f5f9;color:#334155;border-color:#cbd5e1}.llmwt-secondary:hover{background:#e2e8f0;border-color:#94a3b8}.llmwt-danger{background:#dc2626;color:#fff;border-color:#dc2626}.llmwt-danger:hover{background:#b91c1c;border-color:#b91c1c;box-shadow:0 4px 10px #dc262633}.llmwt-primary{background:#2563eb;color:#fff;border-color:#2563eb}.llmwt-primary:hover{background:#1d4ed8;border-color:#1d4ed8}.llmwt-progress-head{display:flex;align-items:center;justify-content:space-between;gap:12px}.llmwt-progress-label{min-width:0;font-size:14px;font-weight:600;color:#1e293b}.llmwt-progress-percent{flex:none;color:#2563eb;font-size:14px;font-weight:700;font-variant-numeric:tabular-nums}.llmwt-progress-track{height:9px;margin-top:11px;overflow:hidden;border-radius:999px;background:#e2e8f0}.llmwt-progress-bar{height:100%;width:0;border-radius:inherit;background:linear-gradient(90deg,#2563eb,#38bdf8);box-shadow:0 0 8px #38bdf866;transition:width .2s ease}.llmwt-translation{display:block;margin:0;margin-block-start:.35em;margin-inline-start:0;color:#1d4ed8;font-style:italic}`;
   document.documentElement.append(style);
 }
 
@@ -67,21 +68,52 @@ function isVisible(node: Text): boolean {
   return style.display !== "none" && style.visibility !== "hidden" && style.opacity !== "0" && parent.getClientRects().length > 0;
 }
 
-function collectNodes(): PageNode[] {
+const paragraphTags = new Set(["P", "LI", "BLOCKQUOTE", "FIGCAPTION", "DT", "DD", "H1", "H2", "H3", "H4", "H5", "H6", "TD", "TH", "CAPTION", "DIV"]);
+
+function paragraphFor(text: Text): HTMLElement | null {
+  let element = text.parentElement;
+  const fallback = element;
+  while (element && element !== document.body) {
+    if (paragraphTags.has(element.tagName)) return element;
+    element = element.parentElement;
+  }
+  return fallback;
+}
+
+function createPageNodes(textNodes: Text[], mode: TranslationMode): PageNode[] {
+  if (mode === "replace") return textNodes.map((text) => {
+    const id = `node-${nextNodeId++}`;
+    nodeMap.set(id, { kind: "text", node: text });
+    return { id, text: text.data };
+  });
+
+  const paragraphs = new Map<HTMLElement, Text[]>();
+  for (const text of textNodes) {
+    const paragraph = paragraphFor(text);
+    if (!paragraph) continue;
+    const group = paragraphs.get(paragraph);
+    if (group) group.push(text); else paragraphs.set(paragraph, [text]);
+  }
+  return Array.from(paragraphs, ([element, texts]) => {
+    const id = `node-${nextNodeId++}`;
+    nodeMap.set(id, { kind: "paragraph", element });
+    return { id, text: texts.map((text) => text.data).join("").trim() };
+  }).filter((node) => node.text.length > 0);
+}
+
+function collectNodes(mode: TranslationMode): PageNode[] {
   nodeMap.clear();
   trackedText = new WeakMap<Text, string>();
   nextNodeId = 0;
   const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-  const nodes: PageNode[] = [];
+  const textNodes: Text[] = [];
   let text: Text | null;
   while ((text = walker.nextNode() as Text | null)) {
     if (!text.data.trim() || !isVisible(text)) continue;
-    const id = `node-${nextNodeId++}`;
-    nodeMap.set(id, text);
     trackedText.set(text, text.data);
-    nodes.push({ id, text: text.data });
+    textNodes.push(text);
   }
-  return nodes;
+  return createPageNodes(textNodes, mode);
 }
 
 function stopDynamicMonitoring() {
@@ -102,13 +134,7 @@ function queueDynamicText(text: Text) {
   if (trackedText.get(text) === text.data) return;
   if (currentMode === "replace" && originalText.has(text)) originalText.set(text, text.data);
   trackedText.set(text, text.data);
-  const pending = pendingDynamicNodes.get(text);
-  if (pending) pending.text = text.data;
-  else {
-    const node = { id: `node-${nextNodeId++}`, text: text.data };
-    nodeMap.set(node.id, text);
-    pendingDynamicNodes.set(text, node);
-  }
+  pendingDynamicNodes.add(text);
   scheduleDynamicTranslation();
 }
 
@@ -122,20 +148,20 @@ function scanDynamicContent(root: Node) {
 function flushDynamicNodes() {
   dynamicTimer = null;
   if (!watchingDynamicContent || taskInProgress) return;
-  for (const [text] of pendingDynamicNodes) if (!text.isConnected || !text.data.trim() || !isVisible(text)) pendingDynamicNodes.delete(text);
-  const entries = Array.from(pendingDynamicNodes.entries()).slice(0, Math.max(1, maxDynamicNodes));
-  if (!entries.length) return;
-  const nodes = entries.map(([, node]) => node);
-  for (const [text] of entries) pendingDynamicNodes.delete(text);
+  for (const text of pendingDynamicNodes) if (!text.isConnected || !text.data.trim() || !isVisible(text)) pendingDynamicNodes.delete(text);
+  const texts = Array.from(pendingDynamicNodes);
+  if (!texts.length) return;
+  const nodes = createPageNodes(texts, currentMode);
+  if (!nodes.length) return;
+  pendingDynamicNodes.clear();
   taskInProgress = true;
   showPanel(ui.newContent, []);
   chrome.runtime.sendMessage({ kind: "appendPage", nodes } satisfies RuntimeMessage);
 }
 
-function startDynamicMonitoring(maxNodes: number) {
+function startDynamicMonitoring() {
   stopDynamicMonitoring();
   watchingDynamicContent = true;
-  maxDynamicNodes = maxNodes;
   dynamicObserver = new MutationObserver((records) => {
     for (const record of records) {
       if (record.type === "childList") for (const node of record.addedNodes) scanDynamicContent(node);
@@ -220,26 +246,40 @@ const inheritedTranslationProperties = [
   "text-align", "text-decoration", "text-shadow", "text-transform", "white-space", "word-break", "word-spacing", "writing-mode"
 ] as const;
 
-function matchSourceStyle(result: HTMLElement, source: Text) {
-  const parent = source.parentElement;
-  if (!parent) return;
-  const computed = getComputedStyle(parent);
+function matchSourceStyle(result: HTMLElement, source: HTMLElement) {
+  const computed = getComputedStyle(source);
   for (const property of inheritedTranslationProperties) {
     const value = computed.getPropertyValue(property);
     if (value) result.style.setProperty(property, value);
   }
-  result.style.setProperty("margin-left", "0");
-  result.style.setProperty("margin-inline-start", ".35em");
+  result.style.setProperty("display", "block");
+  result.style.setProperty("margin", "0");
+  result.style.setProperty("margin-block-start", ".35em");
+  result.style.setProperty("margin-inline-start", "0");
 }
 
 function applyTranslation(nodeId: string, translation: string) {
-  const node = nodeMap.get(nodeId); if (!node?.parentNode) return;
-  if (currentMode === "replace") { if (!originalText.has(node)) originalText.set(node, node.data); trackedText.set(node, translation); node.data = translation; }
-  else {
-    const next = node.nextSibling;
-    if (next instanceof HTMLElement && next.hasAttribute(ATTR)) { matchSourceStyle(next, node); next.textContent = translation; }
-    else { const result = document.createElement("span"); result.setAttribute(ATTR, "translation"); result.className = "llmwt-translation"; matchSourceStyle(result, node); result.textContent = translation; node.parentNode.insertBefore(result, node.nextSibling); }
+  const target = nodeMap.get(nodeId); if (!target) return;
+  if (target.kind === "text") {
+    const node = target.node;
+    if (!node.parentNode) return;
+    if (!originalText.has(node)) originalText.set(node, node.data);
+    trackedText.set(node, translation);
+    node.data = translation;
+    return;
   }
+  const source = target.element;
+  if (!source.isConnected) return;
+  let result = preservedTranslations.get(source);
+  if (!result?.isConnected) {
+    result = document.createElement("span");
+    result.setAttribute(ATTR, "translation");
+    result.className = "llmwt-translation";
+    source.append(result);
+    preservedTranslations.set(source, result);
+  }
+  matchSourceStyle(result, source);
+  result.textContent = translation;
 }
 
 function restorePage() {
@@ -249,7 +289,7 @@ function restorePage() {
   originalText.clear();
   document.querySelectorAll(`[${ATTR}="translation"]`).forEach((element) => element.remove());
   document.querySelector(".llmwt-panel")?.remove();
-  nodeMap.clear(); trackedText = new WeakMap<Text, string>(); activeTaskId = null; taskInProgress = false; cumulativeTranslated = 0;
+  nodeMap.clear(); trackedText = new WeakMap<Text, string>(); preservedTranslations = new WeakMap<HTMLElement, HTMLElement>(); activeTaskId = null; taskInProgress = false; cumulativeTranslated = 0;
 }
 
 function restoreAndCancel() {
@@ -271,11 +311,11 @@ addStyles();
 
 chrome.runtime.onMessage.addListener((message: RuntimeMessage) => {
   if (message.kind === "preparePage") {
-    restorePage(); const allNodes = collectNodes(); const nodes = allNodes.slice(0, message.maxNodes);
-    startDynamicMonitoring(message.maxNodes);
+    restorePage(); currentMode = message.mode;
+    const nodes = collectNodes(message.mode);
+    startDynamicMonitoring();
     let cancelled = false;
-    const limitNote = allNodes.length > nodes.length ? ` ${allNodes.length - nodes.length} ${ui.remaining}.` : "";
-    showPanel(`${nodes.length} ${ui.nodes}, ${message.maxRequests} ${ui.requests}.${limitNote} ${ui.starting}`, [[ui.cancel, () => { cancelled = true; stopDynamicMonitoring(); if (pageStartTimer !== null) window.clearTimeout(pageStartTimer); pageStartTimer = null; }, "danger", "cancel"]]);
+    showPanel(`${nodes.length} ${ui.nodes}; ${ui.requestLimit(message.maxRequests)}. ${ui.starting}`, [[ui.cancel, () => { cancelled = true; stopDynamicMonitoring(); if (pageStartTimer !== null) window.clearTimeout(pageStartTimer); pageStartTimer = null; }, "danger", "cancel"]]);
     pageStartTimer = window.setTimeout(() => { pageStartTimer = null; if (!cancelled) { taskInProgress = true; chrome.runtime.sendMessage({ kind: "startPage", nodes } satisfies RuntimeMessage); } }, 350);
   }
   if (message.kind === "translateSelectionFromMenu") translateSelectionFromMenu(message.text);

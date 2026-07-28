@@ -13,15 +13,15 @@ describe("page translation entry", () => {
 
   it("starts a page task after the right-click command while showing the request count", async () => {
     await import("./content");
-    const handler = addListener.mock.calls[0][0] as (message: { kind: string; maxNodes: number; maxRequests: number }) => void;
-    handler({ kind: "preparePage", maxNodes: 600, maxRequests: 200 });
+    const handler = addListener.mock.calls[0][0] as (message: { kind: string; mode: string; maxRequests: number }) => void;
+    handler({ kind: "preparePage", mode: "replace", maxRequests: 200 });
     await vi.waitFor(() => expect(sendMessage).toHaveBeenCalledWith(expect.objectContaining({ kind: "startPage", nodes: [expect.objectContaining({ text: "Visible page text" })] })));
   });
 
   it("updates progress after each translated or failed node", async () => {
     await import("./content");
     const handler = addListener.mock.calls[0][0] as (message: unknown) => void;
-    handler({ kind: "preparePage", maxNodes: 600, maxRequests: 200 });
+    handler({ kind: "preparePage", mode: "replace", maxRequests: 200 });
     handler({ kind: "taskStarted", taskId: "task-1", total: 2, mode: "replace" });
     expect(document.querySelector(".llmwt-progress-percent")?.textContent).toBe("0%");
     expect(document.querySelectorAll(".llmwt-panel-actions .llmwt-action")).toHaveLength(2);
@@ -42,7 +42,7 @@ describe("page translation entry", () => {
     paragraph.style.color = "rgb(12, 34, 56)"; paragraph.style.fontFamily = "Georgia"; paragraph.style.fontSize = "19px"; paragraph.style.fontStyle = "normal"; paragraph.style.fontWeight = "700"; paragraph.style.lineHeight = "28px";
     await import("./content");
     const handler = addListener.mock.calls[0][0] as (message: unknown) => void;
-    handler({ kind: "preparePage", maxNodes: 200, maxRequests: 200 });
+    handler({ kind: "preparePage", mode: "preserve", maxRequests: 200 });
     handler({ kind: "taskStarted", taskId: "task-2", total: 1, mode: "preserve" });
     handler({ kind: "nodeResult", taskId: "task-2", nodeId: "node-0", text: "保留译文" });
     handler({ kind: "nodeResult", taskId: "task-2", nodeId: "node-0", text: "更新译文" });
@@ -61,11 +61,42 @@ describe("page translation entry", () => {
     expect(document.querySelector("p")?.textContent).toBe("Visible page text");
   });
 
+  it("treats a styled paragraph as one bilingual segment and places its translation below the original", async () => {
+    document.body.innerHTML = "<p>Hello <strong>important</strong> world.</p>";
+    await import("./content");
+    const handler = addListener.mock.calls[0][0] as (message: unknown) => void;
+
+    handler({ kind: "preparePage", mode: "preserve", maxRequests: 200 });
+    await vi.waitFor(() => expect(sendMessage).toHaveBeenCalledWith(expect.objectContaining({
+      kind: "startPage",
+      nodes: [{ id: "node-0", text: "Hello important world." }]
+    })));
+
+    handler({ kind: "taskStarted", taskId: "task-bilingual", total: 1, mode: "preserve", taskType: "initial" });
+    handler({ kind: "nodeResult", taskId: "task-bilingual", nodeId: "node-0", text: "你好，重要的世界。" });
+    const translation = document.querySelector<HTMLElement>('p > [data-llm-web-translator="translation"]:last-child');
+    expect(translation?.textContent).toBe("你好，重要的世界。");
+    expect(translation?.style.display).toBe("block");
+    expect(document.querySelector("p")?.textContent).toBe("Hello important world.你好，重要的世界。");
+  });
+
+  it("sends all 400 paragraph segments instead of truncating the page at 200", async () => {
+    document.body.innerHTML = Array.from({ length: 400 }, (_, index) => `<p>Paragraph ${index}</p>`).join("");
+    await import("./content");
+    const handler = addListener.mock.calls[0][0] as (message: unknown) => void;
+
+    handler({ kind: "preparePage", mode: "preserve", maxRequests: 200 });
+    await vi.waitFor(() => {
+      const start = sendMessage.mock.calls.find(([message]) => message.kind === "startPage" && message.nodes?.length === 400)?.[0];
+      expect(start?.nodes).toHaveLength(400);
+    }, { timeout: 2_000 });
+  });
+
   it("skips code, form controls, buttons, and hidden text", async () => {
     document.body.innerHTML = '<article><p>Reader text</p><pre>const x = 1</pre><input value="Form text"><button>Button text</button><p style="display:none">Hidden text</p></article>';
     await import("./content");
     const handler = addListener.mock.calls[0][0] as (message: unknown) => void;
-    handler({ kind: "preparePage", maxNodes: 200, maxRequests: 200 });
+    handler({ kind: "preparePage", mode: "replace", maxRequests: 200 });
     await vi.waitFor(() => expect(sendMessage).toHaveBeenCalledWith(expect.objectContaining({ kind: "startPage", nodes: [expect.objectContaining({ text: "Reader text" })] })));
     const start = sendMessage.mock.calls.find(([message]) => message.kind === "startPage" && message.nodes?.[0]?.text === "Reader text")?.[0];
     expect(start.nodes.map((node: { text: string }) => node.text.trim())).toEqual(["Reader text"]);
@@ -74,7 +105,7 @@ describe("page translation entry", () => {
   it("watches for dynamically loaded text and appends its translation", async () => {
     await import("./content");
     const handler = addListener.mock.calls[0][0] as (message: unknown) => void;
-    handler({ kind: "preparePage", maxNodes: 600, maxRequests: 200 });
+    handler({ kind: "preparePage", mode: "replace", maxRequests: 200 });
     await vi.waitFor(() => expect(sendMessage).toHaveBeenCalledWith(expect.objectContaining({ kind: "startPage" })));
     handler({ kind: "taskStarted", taskId: "task-initial", total: 1, mode: "replace", taskType: "initial" });
     handler({ kind: "nodeResult", taskId: "task-initial", nodeId: "node-0", text: "Initial translation" });
@@ -97,7 +128,7 @@ describe("page translation entry", () => {
     globalThis.chrome = { runtime: { onMessage: { addListener }, sendMessage, openOptionsPage: vi.fn() }, i18n: { getUILanguage: () => "zh-CN" } } as unknown as typeof chrome;
     await import("./content");
     const handler = addListener.mock.calls[0][0] as (message: unknown) => void;
-    handler({ kind: "preparePage", maxNodes: 600, maxRequests: 200 });
+    handler({ kind: "preparePage", mode: "replace", maxRequests: 200 });
     handler({ kind: "taskStarted", taskId: "task-zh", total: 62, mode: "replace", taskType: "initial" });
     handler({ kind: "taskFinished", summary: { taskId: "task-zh", total: 62, succeeded: 62, failed: [], cancelled: false } });
     expect(document.querySelector(".llmwt-panel-message")?.textContent).toBe("翻译完成！共翻译 62 段文本（将持续监听新内容）");
