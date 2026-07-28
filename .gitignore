@@ -3,6 +3,7 @@ node_modules/
 .vite/
 .vite-temp/
 dist/
+release/
 .env
 .env.*
 !.env.example

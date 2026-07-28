@@ -102,9 +102,14 @@ npm run test:watch
 
 # 类型检查并生成生产构建
 npm run build
+
+# 构建、校验并生成商店发布 ZIP
+npm run package:release
 ```
 
 `npm test` 和 `npm run build` 会自动执行国际化资源生成与校验。
+
+发布包默认生成在 `release/llm-web-translator-<version>.zip`。脚本会核对 `package.json` 和 `public/manifest.json` 的版本号，确保 ZIP 根目录直接包含 `manifest.json`，并输出 SHA-256。相同版本的文件已存在时，可执行 `npm run package:release -- -Force` 覆盖。
 
 ### 项目结构
 
@@ -122,9 +127,9 @@ src/
    └─ translation-history.ts     # 最近 30 条翻译历史
 public/
 ├─ _locales/                     # 自动生成的浏览器原生国际化资源
-├─ assets/demo.gif               # 项目演示
 └─ manifest.json                 # Manifest V3 配置
-scripts/                         # 国际化生成、图标构建和产物校验
+docs/assets/demo.gif             # README 项目演示
+scripts/                         # 国际化、图标、构建校验和发布打包脚本
 ```
 
 ## 国际化维护

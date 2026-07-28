@@ -102,9 +102,14 @@ npm run test:watch
 
 # Type-check and create a production build
 npm run build
+
+# Build, validate, and create the store-ready ZIP
+npm run package:release
 ```
 
 Both `npm test` and `npm run build` automatically generate and validate localization resources.
+
+The release package is written to `release/llm-web-translator-<version>.zip` by default. The script checks that `package.json` and `public/manifest.json` use the same version, verifies that `manifest.json` is at the ZIP root, and prints a SHA-256 checksum. If a package for the same version already exists, run `npm run package:release -- -Force` to replace it.
 
 ### Project structure
 
@@ -122,9 +127,9 @@ src/
    └─ translation-history.ts     # Latest 30 translation records
 public/
 ├─ _locales/                     # Generated browser-native localization resources
-├─ assets/demo.gif               # Project demo
 └─ manifest.json                 # Manifest V3 configuration
-scripts/                         # Localization generation, icon building, and build validation
+docs/assets/demo.gif             # README project demo
+scripts/                         # Localization, icons, build validation, and release packaging
 ```
 
 ## Localization
