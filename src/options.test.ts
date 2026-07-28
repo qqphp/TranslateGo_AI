@@ -9,6 +9,11 @@ describe("profile connection test", () => {
   const sendMessage = vi.fn(async () => undefined);
   const writeText = vi.fn(async () => undefined);
 
+  async function openSettings() {
+    await vi.waitFor(() => expect(document.querySelector("#settings-tab")).not.toBeNull());
+    (document.querySelector("#settings-tab") as HTMLButtonElement).click();
+  }
+
   beforeEach(() => {
     vi.resetModules(); vi.clearAllMocks();
     Object.keys(stored).forEach((key) => delete stored[key]);
@@ -22,7 +27,7 @@ describe("profile connection test", () => {
     await import("./options");
     await vi.waitFor(() => expect(document.querySelector("#translate-tab")).not.toBeNull());
     expect(Array.from(document.querySelectorAll(".tab"), (tab) => tab.id)).toEqual(["translate-tab", "settings-tab", "about-tab"]);
-    (document.querySelector("#translate-tab") as HTMLButtonElement).click();
+    expect((document.querySelector("#translate-tab") as HTMLButtonElement).getAttribute("aria-selected")).toBe("true");
     expect(document.querySelector(".translator-page")).not.toBeNull();
     expect((document.querySelector("#translation-input") as HTMLTextAreaElement).placeholder).toBe("Enter text to translate");
     expect((document.querySelector("#translate-text") as HTMLButtonElement).disabled).toBe(true);
@@ -63,6 +68,7 @@ describe("profile connection test", () => {
 
   it("persists and activates a profile after a successful connection test", async () => {
     await import("./options");
+    await openSettings();
     await vi.waitFor(() => expect(document.querySelector("#test")).not.toBeNull());
     const form = document.querySelector<HTMLFormElement>("#profile-form")!;
     (form.elements.namedItem("name") as HTMLInputElement).value = "My API";
@@ -81,6 +87,7 @@ describe("profile connection test", () => {
       { id: "two", name: "Two", baseUrl: "https://two.example/v1", apiKey: "2", model: "m2", sourceLanguage: "English", targetLanguage: "Japanese", mode: "preserve" }
     ] };
     await import("./options");
+    await openSettings();
     await vi.waitFor(() => expect(document.querySelectorAll(".profile")).toHaveLength(2));
     (document.querySelectorAll<HTMLButtonElement>(".profile")[1]).click();
     await vi.waitFor(() => {
@@ -91,6 +98,7 @@ describe("profile connection test", () => {
 
   it("persists an explicit settings-page language and rerenders immediately", async () => {
     await import("./options");
+    await openSettings();
     await vi.waitFor(() => expect(document.querySelector("#ui-locale")).not.toBeNull());
     const selector = document.querySelector<HTMLSelectElement>("#ui-locale")!;
     selector.value = "zh-CN"; selector.dispatchEvent(new Event("change"));
@@ -103,6 +111,7 @@ describe("profile connection test", () => {
 
   it("offers auto detection only for the source language", async () => {
     await import("./options");
+    await openSettings();
     await vi.waitFor(() => expect(document.querySelector("#sourceLang")).not.toBeNull());
     const sourceValues = Array.from(document.querySelectorAll<HTMLOptionElement>("#sourceLang option"), (option) => option.value);
     const targetValues = Array.from(document.querySelectorAll<HTMLOptionElement>("#targetLang option"), (option) => option.value);
@@ -112,6 +121,7 @@ describe("profile connection test", () => {
 
   it("offers every target language for the interface and keeps the fixed language subtitle", async () => {
     await import("./options");
+    await openSettings();
     await vi.waitFor(() => expect(document.querySelector("#ui-locale")).not.toBeNull());
     const values = Array.from(document.querySelectorAll<HTMLOptionElement>("#ui-locale option"), (option) => option.value);
     expect(values).toHaveLength(18);
@@ -127,6 +137,7 @@ describe("profile connection test", () => {
 
   it("shows an icon on every settings-page button and provides the about tab", async () => {
     await import("./options");
+    await openSettings();
     await vi.waitFor(() => expect(document.querySelector("#about-tab")).not.toBeNull());
     expect(Array.from(document.querySelectorAll("button")).every((button) => button.querySelector("svg"))).toBe(true);
     (document.querySelector("#about-tab") as HTMLButtonElement).click();
@@ -140,6 +151,7 @@ describe("profile connection test", () => {
       { id: "one", name: "One", baseUrl: "https://one.example/v1", apiKey: "1", model: "m1", sourceLanguage: "en", targetLanguage: "zh-CN", mode: "replace" }
     ] };
     await import("./options");
+    await openSettings();
     await vi.waitFor(() => expect(document.querySelector(".profile")).not.toBeNull());
     expect(document.querySelectorAll(".profile-name-row")).toHaveLength(1);
     expect(document.querySelectorAll(".profile-detail")).toHaveLength(2);
@@ -152,6 +164,7 @@ describe("profile connection test", () => {
       { id: "one", name: "One", baseUrl: "https://one.example/v1", apiKey: "1", model: "m1", sourceLanguage: "English", targetLanguage: "Chinese", mode: "replace" }
     ] };
     await import("./options");
+    await openSettings();
     await vi.waitFor(() => expect(document.querySelector(".profile")).not.toBeNull());
     (document.querySelector(".profile") as HTMLButtonElement).click();
     await vi.waitFor(() => expect(document.querySelectorAll(".form-actions .button")).toHaveLength(3));

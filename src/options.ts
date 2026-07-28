@@ -9,7 +9,7 @@ import "./options.css";
 const app = document.querySelector<HTMLDivElement>("#app")!;
 let settings: Settings;
 let editing: Profile | null = null;
-let activeTab: "translate" | "settings" | "about" = "settings";
+let activeTab: "translate" | "settings" | "about" = "translate";
 let translationInput = "";
 let translationResult = "";
 let translationSource = "auto";
