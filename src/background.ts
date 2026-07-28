@@ -2,7 +2,7 @@ import { translateBatch, translate } from "./shared/api";
 import { MAX_REQUESTS_PER_PAGE_TASK, NODES_PER_REQUEST } from "./shared/constants";
 import { getActiveProfile } from "./shared/storage";
 import { withRetries } from "./shared/retry";
-import type { PageNode, Profile, RuntimeMessage, TaskSummary } from "./shared/types";
+import type { PageNode, PageTaskType, Profile, RuntimeMessage, TaskSummary } from "./shared/types";
 
 const MAX_RETRIES = 3;
 const CONCURRENCY = 5;
@@ -27,14 +27,14 @@ async function translateBatchWithRetry(nodes: PageNode[], task: Task) {
   }, MAX_RETRIES, () => task.cancelled || task.controller.signal.aborted);
 }
 
-async function runPageTask(tabId: number, nodes: PageNode[]) {
+async function runPageTask(tabId: number, nodes: PageNode[], taskType: PageTaskType) {
   for (const existing of tasks.values()) if (existing.tabId === tabId) { existing.cancelled = true; existing.controller.abort(); }
   const profile = await activeProfileOrError();
   const taskId = id();
   const task: Task = { tabId, controller: new AbortController(), cancelled: false, requestsStarted: 0, profile };
   tasks.set(taskId, task);
   const summary: TaskSummary = { taskId, total: nodes.length, succeeded: 0, failed: [], cancelled: false };
-  await send(tabId, { kind: "taskStarted", taskId, total: nodes.length, mode: profile.mode });
+  await send(tabId, { kind: "taskStarted", taskId, total: nodes.length, mode: profile.mode, taskType });
   const batches: PageNode[][] = [];
   for (let index = 0; index < nodes.length; index += BATCH_SIZE) batches.push(nodes.slice(index, index + BATCH_SIZE));
   let index = 0;
@@ -85,9 +85,10 @@ async function runPageTask(tabId: number, nodes: PageNode[]) {
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({ id: "translate-page", title: chrome.i18n.getMessage("contextTranslatePage") || "Translate this page", contexts: ["page"] });
+  chrome.contextMenus.create({ id: "translate-selection", title: chrome.i18n.getMessage("contextTranslateSelection") || "Translate selected text", contexts: ["selection"] });
 });
 chrome.action.onClicked.addListener(() => chrome.runtime.openOptionsPage());
-chrome.contextMenus.onClicked.addListener((_info, tab) => {
+chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (!tab?.id) return;
   if (!tab.url || /^(?:chrome|edge|about|moz-extension):/i.test(tab.url) || tab.url.startsWith("https://chrome.google.com/webstore")) {
     void chrome.action.setBadgeBackgroundColor({ tabId: tab.id, color: "#b91c1c" });
@@ -95,7 +96,12 @@ chrome.contextMenus.onClicked.addListener((_info, tab) => {
     void chrome.action.setTitle({ tabId: tab.id, title: chrome.i18n.getMessage("unsupportedPage") || "This page cannot be translated by browser extensions." });
     return;
   }
-  send(tab.id, { kind: "preparePage", maxNodes: MAX_REQUESTS_PER_PAGE_TASK * NODES_PER_REQUEST, maxRequests: MAX_REQUESTS_PER_PAGE_TASK });
+  if (info.menuItemId === "translate-selection") {
+    const text = info.selectionText?.trim();
+    if (text) send(tab.id, { kind: "translateSelectionFromMenu", text });
+    return;
+  }
+  if (info.menuItemId === "translate-page") send(tab.id, { kind: "preparePage", maxNodes: MAX_REQUESTS_PER_PAGE_TASK * NODES_PER_REQUEST, maxRequests: MAX_REQUESTS_PER_PAGE_TASK });
 });
 function cancelTabWork(tabId: number) {
   for (const task of tasks.values()) if (task.tabId === tabId) { task.cancelled = true; task.controller.abort(); }
@@ -123,8 +129,9 @@ chrome.runtime.onMessage.addListener((message: RuntimeMessage, sender, respond) 
     return true;
   }
   if (message.kind === "cancelSelection") { selectionTasks.get(message.requestId)?.controller.abort(); selectionTasks.delete(message.requestId); respond(); return; }
-  if (message.kind === "startPage" || message.kind === "retryNodes") {
-    void runPageTask(tabId, message.nodes)
+  if (message.kind === "startPage" || message.kind === "appendPage" || message.kind === "retryNodes") {
+    const taskType: PageTaskType = message.kind === "startPage" ? "initial" : message.kind === "appendPage" ? "append" : "retry";
+    void runPageTask(tabId, message.nodes, taskType)
       .catch((error) => send(tabId, { kind: "taskError", error: error instanceof Error ? error.message : "Unable to start translation." }))
       .finally(respond);
     return true;

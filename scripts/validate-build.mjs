@@ -9,6 +9,9 @@ const manifest = JSON.parse(await readFile(new URL("../dist/manifest.json", impo
 if (!manifest.content_scripts?.some((entry) => entry.js?.includes("content.js"))) {
   throw new Error("dist/manifest.json does not declare content.js.");
 }
+if (manifest.icons?.["16"] !== manifest.action?.default_icon?.["16"]) {
+  throw new Error("The context-menu extension icon and toolbar icon must use the same 16px asset.");
+}
 
 await Promise.all([16, 32, 48, 128].map((size) => access(new URL(`../dist/icons/icon-${size}.png`, import.meta.url))));
 

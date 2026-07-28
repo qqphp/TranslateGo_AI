@@ -3,5 +3,6 @@
   "extensionDescription": { "message": "Translate selected text or webpages using your own OpenAI-compatible API." },
   "actionTitle": { "message": "Open AI大模型-沉浸式翻译-免费-极简 settings" },
   "contextTranslatePage": { "message": "Translate this page" },
+  "contextTranslateSelection": { "message": "Translate selected text" },
   "unsupportedPage": { "message": "This page cannot be translated by browser extensions." }
 }

@@ -1,4 +1,5 @@
 import type { UiLocale } from "./types";
+import { createAdditionalLocaleMessages } from "./i18n-locales";
 
 type Messages = Record<string, string>;
 let selectedLocale: UiLocale | null = null;
@@ -80,11 +81,14 @@ const japanese: Messages = {
   featureFree: "無料", featureFreeDesc: "拡張機能の利用料はなく、設定した API で使用できます。", featureAllInOne: "AI 翻訳を一か所に", featureAllInOneDesc: "モデル、言語、選択範囲、ページ翻訳をまとめて管理できます。", featureSelection: "選択範囲を翻訳", featureSelectionDesc: "文章を選ぶだけで、その場に翻訳を表示します。", featureBilingual: "原文と訳文を対照表示", featureBilingualDesc: "原文を残して訳文を並べ、読み比べられます。", featureLanguages: "多言語対応", featureLanguagesDesc: "多くの一般的な言語を切り替えて翻訳できます。", featureNoAds: "広告なし", featureNoAdsDesc: "広告や宣伝ポップアップで読書を妨げません。", featurePure: "純粋", featurePureDesc: "ローカル保存、テレメトリなし。翻訳だけに集中します。", featureAccurate: "正確", featureAccurateDesc: "大規模言語モデルが文脈を理解して原意を伝えます。", featureFluent: "流暢", featureFluentDesc: "読みやすい表現で言語の壁を滑らかに越えます。", featureNatural: "自然", featureNaturalDesc: "逐語訳ではなく、自然な言い回しを重視します。", aboutClosingTitle: "翻訳のためだけに設計", aboutClosing: "言葉の壁を気軽に越え、ウェブ上のあらゆる内容を理解できます。"
 };
 
-const messages: Record<UiLocale, Messages> = { en: commonEnglish, "zh-CN": simplifiedChinese, "zh-TW": traditionalChinese, ja: japanese };
+const messages: Record<UiLocale, Messages> = { en: commonEnglish, "zh-CN": simplifiedChinese, "zh-TW": traditionalChinese, ja: japanese, ...createAdditionalLocaleMessages(commonEnglish) };
 
 export function getLocale(language = navigator.language): UiLocale {
   const normalized = language.toLowerCase();
-  return normalized.startsWith("zh-tw") || normalized.startsWith("zh-hk") ? "zh-TW" : normalized.startsWith("zh") ? "zh-CN" : normalized.startsWith("ja") ? "ja" : "en";
+  if (normalized.startsWith("zh-tw") || normalized.startsWith("zh-hk") || normalized.startsWith("zh-hant")) return "zh-TW";
+  if (normalized.startsWith("zh")) return "zh-CN";
+  const primary = normalized.split("-")[0] as UiLocale;
+  return Object.prototype.hasOwnProperty.call(messages, primary) ? primary : "en";
 }
 
 export function setLocale(locale: UiLocale | null): void { selectedLocale = locale; }

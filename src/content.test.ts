@@ -38,6 +38,8 @@ describe("page translation entry", () => {
   });
 
   it("inserts preserved translations and restores the original page", async () => {
+    const paragraph = document.querySelector("p")!;
+    paragraph.style.color = "rgb(12, 34, 56)"; paragraph.style.fontFamily = "Georgia"; paragraph.style.fontSize = "19px"; paragraph.style.fontStyle = "normal"; paragraph.style.fontWeight = "700"; paragraph.style.lineHeight = "28px";
     await import("./content");
     const handler = addListener.mock.calls[0][0] as (message: unknown) => void;
     handler({ kind: "preparePage", maxNodes: 200, maxRequests: 200 });
@@ -45,7 +47,15 @@ describe("page translation entry", () => {
     handler({ kind: "nodeResult", taskId: "task-2", nodeId: "node-0", text: "保留译文" });
     handler({ kind: "nodeResult", taskId: "task-2", nodeId: "node-0", text: "更新译文" });
     expect(document.querySelectorAll('[data-llm-web-translator="translation"]')).toHaveLength(1);
-    expect(document.querySelector('[data-llm-web-translator="translation"]')?.textContent).toBe("更新译文");
+    const translation = document.querySelector<HTMLElement>('[data-llm-web-translator="translation"]')!;
+    expect(translation.textContent).toBe("更新译文");
+    expect(translation.parentElement?.tagName).toBe("P");
+    expect(translation.style.color).toBe("rgb(12, 34, 56)");
+    expect(translation.style.fontFamily).toBe("Georgia");
+    expect(translation.style.fontSize).toBe("19px");
+    expect(translation.style.fontStyle).toBe("normal");
+    expect(translation.style.fontWeight).toBe("700");
+    expect(translation.style.lineHeight).toBe("28px");
     handler({ kind: "restorePage" });
     expect(document.querySelector('[data-llm-web-translator="translation"]')).toBeNull();
     expect(document.querySelector("p")?.textContent).toBe("Visible page text");
@@ -61,15 +71,50 @@ describe("page translation entry", () => {
     expect(start.nodes.map((node: { text: string }) => node.text.trim())).toEqual(["Reader text"]);
   });
 
-  it("cancels a selection request when its bubble closes", async () => {
+  it("watches for dynamically loaded text and appends its translation", async () => {
+    await import("./content");
+    const handler = addListener.mock.calls[0][0] as (message: unknown) => void;
+    handler({ kind: "preparePage", maxNodes: 600, maxRequests: 200 });
+    await vi.waitFor(() => expect(sendMessage).toHaveBeenCalledWith(expect.objectContaining({ kind: "startPage" })));
+    handler({ kind: "taskStarted", taskId: "task-initial", total: 1, mode: "replace", taskType: "initial" });
+    handler({ kind: "nodeResult", taskId: "task-initial", nodeId: "node-0", text: "Initial translation" });
+    handler({ kind: "taskFinished", summary: { taskId: "task-initial", total: 1, succeeded: 1, failed: [], cancelled: false } });
+    expect(document.querySelector(".llmwt-panel-message")?.textContent).toBe("Translation complete! 1 text segments translated (continuing to watch for new content)");
+
+    const loaded = document.createElement("p"); loaded.textContent = "Dynamically loaded text"; document.body.append(loaded);
+    await vi.waitFor(() => expect(sendMessage).toHaveBeenCalledWith(expect.objectContaining({ kind: "appendPage", nodes: [expect.objectContaining({ text: "Dynamically loaded text" })] })), { timeout: 2000 });
+    expect(document.querySelector(".llmwt-panel-message")?.textContent).toBe("New content found. Adding translation…");
+    const append = sendMessage.mock.calls.find(([message]) => message.kind === "appendPage")?.[0];
+    handler({ kind: "taskStarted", taskId: "task-append", total: 1, mode: "replace", taskType: "append" });
+    expect(document.querySelector(".llmwt-panel-notice")?.textContent).toBe("New content found. Adding translation…");
+    handler({ kind: "nodeResult", taskId: "task-append", nodeId: append.nodes[0].id, text: "Dynamic translation" });
+    handler({ kind: "taskFinished", summary: { taskId: "task-append", total: 1, succeeded: 1, failed: [], cancelled: false } });
+    expect(document.querySelector(".llmwt-panel-message")?.textContent).toBe("Translation complete! 2 text segments translated (continuing to watch for new content)");
+    handler({ kind: "restorePage" });
+  });
+
+  it("shows the required cumulative completion message in Simplified Chinese", async () => {
+    globalThis.chrome = { runtime: { onMessage: { addListener }, sendMessage, openOptionsPage: vi.fn() }, i18n: { getUILanguage: () => "zh-CN" } } as unknown as typeof chrome;
+    await import("./content");
+    const handler = addListener.mock.calls[0][0] as (message: unknown) => void;
+    handler({ kind: "preparePage", maxNodes: 600, maxRequests: 200 });
+    handler({ kind: "taskStarted", taskId: "task-zh", total: 62, mode: "replace", taskType: "initial" });
+    handler({ kind: "taskFinished", summary: { taskId: "task-zh", total: 62, succeeded: 62, failed: [], cancelled: false } });
+    expect(document.querySelector(".llmwt-panel-message")?.textContent).toBe("翻译完成！共翻译 62 段文本（将持续监听新内容）");
+    handler({ kind: "restorePage" });
+  });
+
+  it("does not show a floating button and translates selection only from the context menu", async () => {
     Range.prototype.getBoundingClientRect = () => new DOMRect(10, 10, 40, 20);
     await import("./content");
+    const handler = addListener.mock.calls[0][0] as (message: unknown) => void;
     const range = document.createRange(); range.selectNodeContents(document.querySelector("p")!);
     const selection = window.getSelection()!; selection.removeAllRanges(); selection.addRange(range);
     document.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
-    await vi.waitFor(() => expect(document.querySelector(".llmwt-float")).not.toBeNull());
-    expect(document.querySelector(".llmwt-float svg")).not.toBeNull();
-    (document.querySelector(".llmwt-float") as HTMLButtonElement).click();
+    await Promise.resolve();
+    expect(document.querySelector(".llmwt-float")).toBeNull();
+    expect(sendMessage).not.toHaveBeenCalledWith(expect.objectContaining({ kind: "translateSelection" }));
+    handler({ kind: "translateSelectionFromMenu", text: "Visible page text" });
     const start = sendMessage.mock.calls.find(([message]) => message.kind === "translateSelection")?.[0];
     expect(start).toMatchObject({ kind: "translateSelection", text: "Visible page text", requestId: expect.any(String) });
     (document.querySelector(".llmwt-popover button") as HTMLButtonElement).click();

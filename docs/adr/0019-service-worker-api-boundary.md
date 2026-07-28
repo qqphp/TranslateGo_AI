@@ -5,7 +5,7 @@
 
 ## 决策
 
-Manifest V3 扩展 service worker 统一负责读取本地模型配置、发起 API 请求、解析普通 JSON 响应和管理重试。content script 负责网页 DOM 提取、DOM 回写、选中文本悬浮按钮与翻译气泡。
+Manifest V3 扩展 service worker 统一负责读取本地模型配置、发起 API 请求、解析普通 JSON 响应、管理重试和右键菜单命令。content script 负责网页 DOM 提取、DOM 回写与选中文本翻译气泡。
 
 两者通过扩展消息传输任务、批次、节点和增量结果。API Key 不下发到网页 content script。
 

@@ -2,7 +2,7 @@ import { translate } from "./shared/api";
 import { getSettings, saveSettings, validateBaseUrl } from "./shared/storage";
 import { setLocale, t } from "./shared/i18n";
 import { LANGUAGE_OPTIONS, normalizeLanguage } from "./shared/languages";
-import type { Profile, Settings, TranslationMode, UiLocalePreference } from "./shared/types";
+import type { Profile, Settings, TranslationMode, UiLocale, UiLocalePreference } from "./shared/types";
 import "./options.css";
 
 const app = document.querySelector<HTMLDivElement>("#app")!;
@@ -38,6 +38,7 @@ const iconPaths: Record<IconName, string> = {
 
 const icon = (name: IconName, className = "icon") => `<svg class="${className}" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${iconPaths[name]}</svg>`;
 const buttonContent = (name: IconName, label: string) => `${icon(name)}<span>${escape(label)}</span>`;
+const uiLocaleNames: Record<UiLocale, string> = { "zh-CN": "简体中文", "zh-TW": "繁體中文", en: "English", ja: "日本語", ko: "한국어", fr: "Français", de: "Deutsch", es: "Español", pt: "Português", ru: "Русский", ar: "العربية", it: "Italiano", th: "ไทย", vi: "Tiếng Việt", id: "Bahasa Indonesia", hi: "हिन्दी", tr: "Türkçe" };
 const newProfile = (): Profile => ({ id: crypto.randomUUID(), name: "", baseUrl: "", apiKey: "", model: "", sourceLanguage: "auto", targetLanguage: "zh-CN", mode: "replace" });
 const escape = (value: string) => value.replace(/[&<>"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[char]!);
 const notifyProfileChange = () => chrome.runtime.sendMessage({ kind: "profilesChanged" }).catch(() => undefined);
@@ -56,6 +57,10 @@ function displayLanguage(value: string, includeAuto = false): string {
 function languageOptions(selected: string, includeAuto: boolean): string {
   const auto = includeAuto ? `<option value="auto" ${selected === "auto" ? "selected" : ""}>${t("autoDetect")}</option>` : "";
   return auto + LANGUAGE_OPTIONS.map((option) => `<option value="${option.value}" ${selected === option.value ? "selected" : ""}>${escape(displayLanguage(option.value))}</option>`).join("");
+}
+
+function uiLanguageOptions(selected: UiLocalePreference | undefined): string {
+  return `<option value="auto" ${!selected || selected === "auto" ? "selected" : ""}>${t("followBrowser")}</option>` + LANGUAGE_OPTIONS.map((option) => `<option value="${option.value}" ${selected === option.value ? "selected" : ""}>${uiLocaleNames[option.value as UiLocale]}</option>`).join("");
 }
 
 function showDialog(message: string, confirm = false): Promise<boolean> {
@@ -144,10 +149,11 @@ function render() {
   const baseProfile = editing ?? newProfile();
   const profile = { ...baseProfile, sourceLanguage: normalizeLanguage(baseProfile.sourceLanguage, "auto"), targetLanguage: normalizeLanguage(baseProfile.targetLanguage, "zh-CN") };
   document.documentElement.lang = settings.uiLocale && settings.uiLocale !== "auto" ? settings.uiLocale : navigator.language;
+  document.documentElement.dir = document.documentElement.lang.toLowerCase().startsWith("ar") ? "rtl" : "ltr";
   document.title = t("title");
   app.innerHTML = `
     <header>
-      <div class="header-row"><div class="brand"><span class="brand-icon">${icon("language")}</span><div><h1>${t("title")}</h1><p>${t("brandTagline")}</p></div></div><label class="locale">${t("uiLanguage")}<select id="ui-locale"><option value="auto" ${!settings.uiLocale || settings.uiLocale === "auto" ? "selected" : ""}>${t("followBrowser")}</option><option value="zh-CN" ${settings.uiLocale === "zh-CN" ? "selected" : ""}>简体中文</option><option value="zh-TW" ${settings.uiLocale === "zh-TW" ? "selected" : ""}>繁體中文</option><option value="en" ${settings.uiLocale === "en" ? "selected" : ""}>English</option><option value="ja" ${settings.uiLocale === "ja" ? "selected" : ""}>日本語</option></select></label></div>
+      <div class="header-row"><div class="brand"><span class="brand-icon">${icon("language")}</span><div><h1>${t("title")}</h1><p>${t("brandTagline")}</p></div></div><div class="locale-card"><span class="locale-card-icon">${icon("globe")}</span><label class="locale" for="ui-locale"><span class="locale-copy"><strong>${t("uiLanguage")}</strong><small>language</small></span><select id="ui-locale">${uiLanguageOptions(settings.uiLocale)}</select></label></div></div>
     </header>
     ${renderTabs()}
     ${activeTab === "about" ? renderAbout() : renderSettings(profile)}`;

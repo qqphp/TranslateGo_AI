@@ -3,5 +3,6 @@
   "extensionDescription": { "message": "独自の OpenAI 互換 API で選択テキストやウェブページを翻訳します。" },
   "actionTitle": { "message": "AI大模型-沉浸式翻译-免费-极简 の設定を開く" },
   "contextTranslatePage": { "message": "このページを翻訳" },
+  "contextTranslateSelection": { "message": "選択したテキストを翻訳" },
   "unsupportedPage": { "message": "このページはブラウザー拡張機能では翻訳できません。" }
 }

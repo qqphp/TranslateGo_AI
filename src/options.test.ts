@@ -65,6 +65,21 @@ describe("profile connection test", () => {
     expect(targetValues).toHaveLength(17); expect(targetValues).not.toContain("auto");
   });
 
+  it("offers every target language for the interface and keeps the fixed language subtitle", async () => {
+    await import("./options");
+    await vi.waitFor(() => expect(document.querySelector("#ui-locale")).not.toBeNull());
+    const values = Array.from(document.querySelectorAll<HTMLOptionElement>("#ui-locale option"), (option) => option.value);
+    expect(values).toHaveLength(18);
+    expect(values.slice(1)).toEqual(["zh-CN", "zh-TW", "en", "ja", "ko", "fr", "de", "es", "pt", "ru", "ar", "it", "th", "vi", "id", "hi", "tr"]);
+    expect(document.querySelector(".locale-copy strong")?.textContent).toBe("Interface language");
+    expect(document.querySelector(".locale-copy small")?.textContent).toBe("language");
+    const selector = document.querySelector<HTMLSelectElement>("#ui-locale")!;
+    selector.value = "ar"; selector.dispatchEvent(new Event("change"));
+    await vi.waitFor(() => expect(document.documentElement.dir).toBe("rtl"));
+    expect(document.querySelector(".locale-copy strong")?.textContent).toBe("لغة الواجهة");
+    expect(document.querySelector(".locale-copy small")?.textContent).toBe("language");
+  });
+
   it("shows an icon on every settings-page button and provides the about tab", async () => {
     await import("./options");
     await vi.waitFor(() => expect(document.querySelector("#about-tab")).not.toBeNull());
