@@ -2,6 +2,9 @@
   "extensionName": {
     "message": "AI大模型-沉浸式翻译-免费-极简"
   },
+  "extensionShortName": {
+    "message": "沉浸式翻譯"
+  },
   "extensionDescription": {
     "message": "使用您自己的 OpenAI 相容 API 翻譯選取文字或網頁。"
   },

@@ -8,6 +8,7 @@ const PRODUCT_NAME = "AI大模型-沉浸式翻译-免费-极简";
 
 const commonEnglish: Messages = {
   title: PRODUCT_NAME,
+  shortName: "TranslateGo",
   localeName: "English",
   extensionDescription: "Translate selected text or webpages using your own OpenAI-compatible API.",
   actionTitle: `Open ${PRODUCT_NAME} settings`, contextTranslatePage: "Translate this page", contextTranslateSelection: "Translate selected text",
@@ -47,6 +48,7 @@ const commonEnglish: Messages = {
 const simplifiedChinese: Messages = {
   ...commonEnglish,
   localeName: "简体中文",
+  shortName: "沉浸式翻译",
   extensionDescription: "使用您自己的 OpenAI 兼容 API 翻译选中文本或网页。", actionTitle: `打开 ${PRODUCT_NAME} 设置`, contextTranslatePage: "翻译此页面", contextTranslateSelection: "翻译选中文字",
   brandTagline: "专注、纯粹的网页 AI 翻译工具",
   uiLanguage: "界面语言", followBrowser: "跟随浏览器", autoDetect: "自动检测",
@@ -83,6 +85,7 @@ const simplifiedChinese: Messages = {
 const traditionalChinese: Messages = {
   ...simplifiedChinese,
   localeName: "繁體中文",
+  shortName: "沉浸式翻譯",
   extensionDescription: "使用您自己的 OpenAI 相容 API 翻譯選取文字或網頁。", actionTitle: `開啟 ${PRODUCT_NAME} 設定`, contextTranslatePage: "翻譯此頁面", contextTranslateSelection: "翻譯選取文字",
   brandTagline: "專注、純粹的網頁 AI 翻譯工具", uiLanguage: "介面語言", followBrowser: "跟隨瀏覽器", autoDetect: "自動偵測",
   translateTab: "翻譯", settingsTab: "設定", aboutTab: "說明", pageNavigation: "設定頁面導覽",

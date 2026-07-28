@@ -2,6 +2,9 @@
   "extensionName": {
     "message": "AI大模型-沉浸式翻译-免费-极简"
   },
+  "extensionShortName": {
+    "message": "TranslateGo"
+  },
   "extensionDescription": {
     "message": "अपने OpenAI-संगत API से चुने हुए पाठ या वेबपेज का अनुवाद करें।"
   },

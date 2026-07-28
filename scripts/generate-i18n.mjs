@@ -9,6 +9,7 @@ const browserLocaleNames = {
 };
 const browserFields = {
   extensionName: "title",
+  extensionShortName: "shortName",
   extensionDescription: "extensionDescription",
   actionTitle: "actionTitle",
   contextTranslatePage: "contextTranslatePage",
@@ -87,7 +88,7 @@ for (const locale of locales) {
   await mkdir(directory, { recursive: true });
   const browserMessages = selectFields(locale, browserFields);
   if (locale !== "en") for (const key of Object.keys(browserMessages)) {
-    if (key !== "extensionName" && browserMessages[key] === englishBrowser[key]) throw new Error(`Locale ${locale} has not translated ${browserFields[key]}.`);
+    if (!["extensionName", "extensionShortName"].includes(key) && browserMessages[key] === englishBrowser[key]) throw new Error(`Locale ${locale} has not translated ${browserFields[key]}.`);
   }
   const messages = Object.fromEntries(Object.entries(browserMessages).map(([key, message]) => [key, { message }]));
   await writeFile(new URL("messages.json", directory), `${JSON.stringify(messages, null, 2)}\n`, "utf8");

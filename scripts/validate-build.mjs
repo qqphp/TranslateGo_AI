@@ -6,6 +6,14 @@ if (/^\s*import\b/m.test(content)) {
 }
 
 const manifest = JSON.parse(await readFile(new URL("../dist/manifest.json", import.meta.url), "utf8"));
+const packageJson = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
+if (manifest.manifest_version !== 3) throw new Error("dist/manifest.json must use Manifest V3.");
+if (manifest.version !== packageJson.version) throw new Error("package.json and dist/manifest.json versions must match.");
+if (manifest.short_name !== "__MSG_extensionShortName__") throw new Error("dist/manifest.json must use the localized short name.");
+if (manifest.minimum_chrome_version !== "99") throw new Error("dist/manifest.json must declare Chrome 99 as the minimum supported version.");
+if (!String(manifest.homepage_url).startsWith("https://")) throw new Error("dist/manifest.json must declare an HTTPS homepage.");
+if (manifest.permissions?.includes("tabs")) throw new Error("The unnecessary tabs permission must not be requested.");
+for (const permission of ["storage", "contextMenus"]) if (!manifest.permissions?.includes(permission)) throw new Error(`dist/manifest.json is missing the ${permission} permission.`);
 if (!manifest.content_scripts?.some((entry) => entry.js?.includes("content.js"))) {
   throw new Error("dist/manifest.json does not declare content.js.");
 }
@@ -22,9 +30,10 @@ if (JSON.stringify(builtLocales) !== JSON.stringify(expectedLocales)) {
 }
 await Promise.all(builtLocales.map(async (locale) => {
   const messages = JSON.parse(await readFile(new URL(`../dist/_locales/${locale}/messages.json`, import.meta.url), "utf8"));
-  for (const key of ["extensionName", "extensionDescription", "actionTitle", "contextTranslatePage", "contextTranslateSelection", "unsupportedPage"]) {
+  for (const key of ["extensionName", "extensionShortName", "extensionDescription", "actionTitle", "contextTranslatePage", "contextTranslateSelection", "unsupportedPage"]) {
     if (!messages[key]?.message) throw new Error(`Built locale ${locale} is missing ${key}.`);
   }
+  if ([...messages.extensionShortName.message].length > 12) throw new Error(`Built locale ${locale} has a short name longer than 12 characters.`);
 }));
 
 console.log("Validated MV3 build entrypoints.");
