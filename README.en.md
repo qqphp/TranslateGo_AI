@@ -4,7 +4,7 @@
 
 A lightweight Manifest V3 translation extension for Chrome and Microsoft Edge. It uses your own OpenAI-compatible API to translate text selections, standalone text, and complete webpages without interrupting your browsing flow.
 
-![AI-Powered Immersive Translator demo](public/assets/demo.gif)
+![AI-Powered Immersive Translator demo](docs/assets/demo.gif)
 
 ## Features
 

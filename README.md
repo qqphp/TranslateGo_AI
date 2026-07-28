@@ -4,7 +4,7 @@
 
 一款适用于 Chrome 和 Microsoft Edge 的轻量级 Manifest V3 翻译扩展。使用你自己的 OpenAI 兼容 API，在不离开当前页面的情况下完成文本、划词和整页翻译。
 
-![AI 大模型沉浸式翻译演示](public/assets/demo.gif)
+![AI 大模型沉浸式翻译演示](docs/assets/demo.gif)
 
 ## 功能特性
 
