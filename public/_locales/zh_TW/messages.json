@@ -1,7 +1,7 @@
 {
-  "extensionName": { "message": "大模型網頁翻譯" },
+  "extensionName": { "message": "AI大模型-沉浸式翻译-免费-极简" },
   "extensionDescription": { "message": "使用您自己的 OpenAI 相容 API 翻譯選取文字或網頁。" },
-  "actionTitle": { "message": "開啟大模型網頁翻譯設定" },
+  "actionTitle": { "message": "開啟 AI大模型-沉浸式翻译-免费-极简 設定" },
   "contextTranslatePage": { "message": "翻譯此頁面" },
   "unsupportedPage": { "message": "瀏覽器擴充功能無法翻譯此頁面。" }
 }

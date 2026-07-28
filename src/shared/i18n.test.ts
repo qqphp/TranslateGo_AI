@@ -11,7 +11,7 @@ describe("UI locale selection", () => {
 
   it("falls back to English", () => expect(getLocale("fr-FR")).toBe("en"));
   it("supports an explicit settings-page override", () => {
-    setLocale("ja"); expect(t("title")).toBe("LLM Web 翻訳");
+    setLocale("ja"); expect(t("title")).toBe("AI大模型-沉浸式翻译-免费-极简");
     setLocale("zh-CN"); expect(t("uiLanguage")).toBe("界面语言");
     setLocale(null);
   });

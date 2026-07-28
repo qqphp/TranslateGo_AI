@@ -26,6 +26,7 @@ describe("page translation entry", () => {
     expect(document.querySelector(".llmwt-progress-percent")?.textContent).toBe("0%");
     expect(document.querySelectorAll(".llmwt-panel-actions .llmwt-action")).toHaveLength(2);
     expect(document.querySelector(".llmwt-danger")?.textContent).toBe("Cancel");
+    expect(Array.from(document.querySelectorAll(".llmwt-panel-actions button")).every((button) => button.querySelector("svg"))).toBe(true);
     handler({ kind: "nodeResult", taskId: "task-1", nodeId: "node-0", text: "译文" });
     expect(document.querySelector(".llmwt-panel")?.textContent).toContain("1/2");
     expect(document.querySelector(".llmwt-progress-percent")?.textContent).toBe("50%");
@@ -67,6 +68,7 @@ describe("page translation entry", () => {
     const selection = window.getSelection()!; selection.removeAllRanges(); selection.addRange(range);
     document.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
     await vi.waitFor(() => expect(document.querySelector(".llmwt-float")).not.toBeNull());
+    expect(document.querySelector(".llmwt-float svg")).not.toBeNull();
     (document.querySelector(".llmwt-float") as HTMLButtonElement).click();
     const start = sendMessage.mock.calls.find(([message]) => message.kind === "translateSelection")?.[0];
     expect(start).toMatchObject({ kind: "translateSelection", text: "Visible page text", requestId: expect.any(String) });

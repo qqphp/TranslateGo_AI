@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanTranslation, parseBatchOutput, translate } from "./api";
+import { cleanTranslation, parseBatchOutput, translate, translateBatch } from "./api";
 import type { Profile } from "./types";
 
 const profile: Profile = { id: "p", name: "Test", baseUrl: "https://api.example.com/v1", apiKey: "secret", model: "demo", sourceLanguage: "English", targetLanguage: "Chinese", mode: "replace" };
@@ -25,6 +25,17 @@ describe("parseBatchOutput", () => {
 });
 
 describe("Chat Completions client", () => {
+  it("uses the compact plain-text protocol for a single page node", async () => {
+    const fetch = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response(JSON.stringify({ choices: [{ message: { content: "你好" } }] }), { status: 200 }));
+    vi.stubGlobal("fetch", fetch);
+    const result = await translateBatch(profile, [{ id: "node-0", text: "Hello" }]);
+    const request = JSON.parse(String(fetch.mock.calls[0][1]?.body));
+    expect(result.get("node-0")).toBe("你好");
+    expect(request.messages).toHaveLength(2);
+    expect(request.messages.map((message: { content: string }) => message.content).join("\n")).not.toContain("JSON");
+    expect(JSON.stringify(request).length).toBeLessThan(400);
+  });
+
   it("uses a non-streaming request and parses the assistant message", async () => {
     const fetch = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response(JSON.stringify({ choices: [{ message: { content: "你好" } }] }), { status: 200, headers: { "Content-Type": "application/json" } }));
     vi.stubGlobal("fetch", fetch);
@@ -39,7 +50,7 @@ describe("Chat Completions client", () => {
     vi.stubGlobal("fetch", fetch);
     await translate({ ...profile, sourceLanguage: "auto" }, "Bonjour");
     const request = JSON.parse(String(fetch.mock.calls[0][1]?.body));
-    expect(request.messages[1].content).toContain("Detect the source language automatically");
+    expect(request.messages[1].content).toContain("Source: auto-detect");
   });
 
   it("returns safe errors without exposing the API key", async () => {

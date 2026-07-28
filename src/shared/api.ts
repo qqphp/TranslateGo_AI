@@ -1,6 +1,6 @@
 import type { PageNode, Profile } from "./types";
 
-export const SYSTEM_PROMPT = "You are a translation engine. Translate from the requested source language to the requested target language. Return only the plain translation: no explanation, quotation marks, Markdown, labels, or notes.";
+export const SYSTEM_PROMPT = "Translate the text. Return only the translation, without quotes, labels, notes, or Markdown.";
 
 export class TranslationError extends Error {}
 const REQUEST_TIMEOUT_MS = 60_000;
@@ -44,7 +44,7 @@ async function chat(profile: Profile, messages: Array<{ role: "system" | "user";
 export async function translate(profile: Profile, text: string, signal?: AbortSignal): Promise<string> {
   return cleanTranslation(await chat(profile, [
     { role: "system", content: SYSTEM_PROMPT },
-    { role: "user", content: `${profile.sourceLanguage === "auto" ? "Detect the source language automatically." : `Source language: ${profile.sourceLanguage}`}\nTarget language: ${profile.targetLanguage}\nText:\n${text}` }
+    { role: "user", content: `Source: ${profile.sourceLanguage === "auto" ? "auto-detect" : profile.sourceLanguage}\nTarget: ${profile.targetLanguage}\n\n${text}` }
   ], signal));
 }
 
@@ -66,6 +66,11 @@ export function parseBatchOutput(output: string, expected: PageNode[]): Map<stri
 }
 
 export async function translateBatch(profile: Profile, nodes: PageNode[], signal?: AbortSignal): Promise<Map<string, string>> {
+  if (nodes.length === 0) return new Map();
+  if (nodes.length === 1) {
+    const node = nodes[0];
+    return new Map([[node.id, await translate(profile, node.text, signal)]]);
+  }
   const output = await chat(profile, [
     { role: "system", content: "You are a translation engine. Translate every item from the requested source language to the requested target language. Return only a valid JSON array. Each item must be exactly {\"id\": string, \"translation\": string}; preserve every supplied id exactly; provide plain translations only, with no explanations or Markdown." },
     { role: "user", content: `${profile.sourceLanguage === "auto" ? "Detect the source language of each item automatically." : `Source language: ${profile.sourceLanguage}`}\nTarget language: ${profile.targetLanguage}\nItems:\n${JSON.stringify(nodes)}` }

@@ -51,9 +51,9 @@ describe("profile connection test", () => {
     selector.value = "zh-CN"; selector.dispatchEvent(new Event("change"));
     await vi.waitFor(() => {
       expect((stored.settings as { uiLocale: string }).uiLocale).toBe("zh-CN");
-      expect(document.title).toBe("大模型网页翻译");
+      expect(document.title).toBe("AI大模型-沉浸式翻译-免费-极简");
+      expect(document.querySelector(".locale")?.textContent).toContain("界面语言");
     });
-    expect(document.querySelector(".locale")?.textContent).toContain("界面语言");
   });
 
   it("offers auto detection only for the source language", async () => {
@@ -63,6 +63,28 @@ describe("profile connection test", () => {
     const targetValues = Array.from(document.querySelectorAll<HTMLOptionElement>("#targetLang option"), (option) => option.value);
     expect(sourceValues).toHaveLength(18); expect(sourceValues[0]).toBe("auto");
     expect(targetValues).toHaveLength(17); expect(targetValues).not.toContain("auto");
+  });
+
+  it("shows an icon on every settings-page button and provides the about tab", async () => {
+    await import("./options");
+    await vi.waitFor(() => expect(document.querySelector("#about-tab")).not.toBeNull());
+    expect(Array.from(document.querySelectorAll("button")).every((button) => button.querySelector("svg"))).toBe(true);
+    (document.querySelector("#about-tab") as HTMLButtonElement).click();
+    expect(document.querySelector(".about")?.textContent).toContain("All-in-one AI translation");
+    expect(document.querySelector(".about")?.textContent).toContain("Built only for translation");
+    expect(Array.from(document.querySelectorAll("button")).every((button) => button.querySelector("svg"))).toBe(true);
+  });
+
+  it("renders profile name, model, and language on separate rows", async () => {
+    stored.settings = { activeProfileId: "one", profiles: [
+      { id: "one", name: "One", baseUrl: "https://one.example/v1", apiKey: "1", model: "m1", sourceLanguage: "en", targetLanguage: "zh-CN", mode: "replace" }
+    ] };
+    await import("./options");
+    await vi.waitFor(() => expect(document.querySelector(".profile")).not.toBeNull());
+    expect(document.querySelectorAll(".profile-name-row")).toHaveLength(1);
+    expect(document.querySelectorAll(".profile-detail")).toHaveLength(2);
+    expect(document.querySelector(".profile")?.textContent).toContain("m1");
+    expect(document.querySelector(".profile")?.textContent).toContain("English → Simplified Chinese");
   });
 
   it("keeps three profile actions on one row and confirms before deleting", async () => {

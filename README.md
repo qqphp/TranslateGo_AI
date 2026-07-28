@@ -1,4 +1,4 @@
-# LLM Web Translator
+# AI大模型-沉浸式翻译-免费-极简
 
 A Manifest V3 extension for Chrome and Microsoft Edge that translates selected text or visible webpage text through the user's own OpenAI-compatible API.
 

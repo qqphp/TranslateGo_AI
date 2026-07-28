@@ -20,16 +20,34 @@ let pageStartTimer: number | null = null;
 const language = (chrome.i18n?.getUILanguage?.() || navigator.language).toLowerCase();
 const locale = language.startsWith("zh-tw") || language.startsWith("zh-hk") ? "zh-TW" : language.startsWith("zh") ? "zh-CN" : language.startsWith("ja") ? "ja" : "en";
 const pageMessages = {
-  en: { translate: "Translate", translating: "Translating…", cancel: "Cancel", restore: "Restore original", openSettings: "Open settings", running: "Translation running", failed: "failed", complete: "completed", partial: "finished with failures", cancelled: "cancelled", retry: "Retry failed", nodes: "text nodes will be sent", requests: "requests", remaining: "nodes will not be sent", starting: "Starting translation…" },
-  "zh-CN": { translate: "翻译", translating: "正在翻译…", cancel: "取消", restore: "恢复原文", openSettings: "打开设置", running: "正在翻译", failed: "失败", complete: "已完成", partial: "部分失败", cancelled: "已取消", retry: "重试失败项", nodes: "个文本节点将被发送", requests: "次请求", remaining: "个节点不会发送", starting: "正在开始翻译…" },
-  "zh-TW": { translate: "翻譯", translating: "正在翻譯…", cancel: "取消", restore: "恢復原文", openSettings: "開啟設定", running: "正在翻譯", failed: "失敗", complete: "已完成", partial: "部分失敗", cancelled: "已取消", retry: "重試失敗項", nodes: "個文字節點將被傳送", requests: "次請求", remaining: "個節點不會傳送", starting: "正在開始翻譯…" },
-  ja: { translate: "翻訳", translating: "翻訳中…", cancel: "キャンセル", restore: "原文を復元", openSettings: "設定を開く", running: "翻訳中", failed: "失敗", complete: "完了", partial: "一部失敗", cancelled: "キャンセル済み", retry: "失敗項目を再試行", nodes: "個のテキストノードを送信", requests: "リクエスト", remaining: "個のノードは送信されません", starting: "翻訳を開始しています…" }
+  en: { translate: "Translate", translating: "Translating…", cancel: "Cancel", close: "Close", restore: "Restore original", openSettings: "Open settings", running: "Translation running", failed: "failed", complete: "completed", partial: "finished with failures", cancelled: "cancelled", retry: "Retry failed", nodes: "text nodes will be sent", requests: "requests", remaining: "nodes will not be sent", starting: "Starting translation…" },
+  "zh-CN": { translate: "翻译", translating: "正在翻译…", cancel: "取消", close: "关闭", restore: "恢复原文", openSettings: "打开设置", running: "正在翻译", failed: "失败", complete: "已完成", partial: "部分失败", cancelled: "已取消", retry: "重试失败项", nodes: "个文本节点将被发送", requests: "次请求", remaining: "个节点不会发送", starting: "正在开始翻译…" },
+  "zh-TW": { translate: "翻譯", translating: "正在翻譯…", cancel: "取消", close: "關閉", restore: "恢復原文", openSettings: "開啟設定", running: "正在翻譯", failed: "失敗", complete: "已完成", partial: "部分失敗", cancelled: "已取消", retry: "重試失敗項", nodes: "個文字節點將被傳送", requests: "次請求", remaining: "個節點不會傳送", starting: "正在開始翻譯…" },
+  ja: { translate: "翻訳", translating: "翻訳中…", cancel: "キャンセル", close: "閉じる", restore: "原文を復元", openSettings: "設定を開く", running: "翻訳中", failed: "失敗", complete: "完了", partial: "一部失敗", cancelled: "キャンセル済み", retry: "失敗項目を再試行", nodes: "個のテキストノードを送信", requests: "リクエスト", remaining: "個のノードは送信されません", starting: "翻訳を開始しています…" }
 } as const;
 const ui = pageMessages[locale];
 
+type IconName = "translate" | "close" | "cancel" | "restore" | "settings" | "retry";
+const iconPaths: Record<IconName, string> = {
+  translate: '<path d="M4 5h10M9 3v2c0 5-2 8-6 10M6 9c1.5 2.5 3.5 4.5 6 6M14 11h4l3 10M19.5 17h-7"/>',
+  close: '<path d="m6 6 12 12M18 6 6 18"/>',
+  cancel: '<circle cx="12" cy="12" r="9"/><path d="m9 9 6 6M15 9l-6 6"/>',
+  restore: '<path d="M4 9V4m0 0h5M4 4l4 4a7 7 0 1 1-2 7"/>',
+  settings: '<path d="M4 7h10M4 12h16M16 7h4M4 17h4M10 17h10"/><circle cx="12" cy="7" r="2"/><circle cx="8" cy="17" r="2"/>',
+  retry: '<path d="M20 7V3m0 0h-4M20 3l-3 3a7 7 0 0 0-11 2M4 17v4m0 0h4m-4 0 3-3a7 7 0 0 0 11-2"/>'
+};
+
+function createIcon(name: IconName) {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("class", "llmwt-icon"); svg.setAttribute("viewBox", "0 0 24 24"); svg.setAttribute("aria-hidden", "true");
+  svg.setAttribute("fill", "none"); svg.setAttribute("stroke", "currentColor"); svg.setAttribute("stroke-width", "1.9"); svg.setAttribute("stroke-linecap", "round"); svg.setAttribute("stroke-linejoin", "round");
+  svg.innerHTML = iconPaths[name];
+  return svg;
+}
+
 function addStyles() {
   const style = document.createElement("style");
-  style.textContent = `[${ATTR}]{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.4;box-sizing:border-box}.llmwt-float{position:fixed;z-index:2147483647;border:0;border-radius:16px;background:#2563eb;color:#fff;padding:7px 11px;box-shadow:0 3px 12px #0004;cursor:pointer}.llmwt-popover{position:fixed;z-index:2147483647;max-width:360px;background:#111827;color:#fff;border-radius:8px;padding:12px;box-shadow:0 6px 20px #0005;white-space:pre-wrap}.llmwt-popover button{margin-left:8px}.llmwt-panel{position:fixed;right:20px;bottom:20px;z-index:2147483647;width:min(340px,calc(100vw - 40px));background:#fff;color:#111827;border:1px solid #e2e8f0;border-radius:14px;padding:16px;box-shadow:0 14px 38px #0f172a2e}.llmwt-panel-message{font-size:14px;color:#334155}.llmwt-panel-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}.llmwt-action{appearance:none;border:1px solid transparent;border-radius:8px;padding:8px 13px;font:600 13px/1.2 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;cursor:pointer;transition:background-color .16s,border-color .16s,box-shadow .16s,transform .16s}.llmwt-action:hover{transform:translateY(-1px)}.llmwt-action:focus-visible{outline:3px solid #93c5fd;outline-offset:2px}.llmwt-secondary{background:#f1f5f9;color:#334155;border-color:#cbd5e1}.llmwt-secondary:hover{background:#e2e8f0;border-color:#94a3b8}.llmwt-danger{background:#dc2626;color:#fff;border-color:#dc2626}.llmwt-danger:hover{background:#b91c1c;border-color:#b91c1c;box-shadow:0 4px 10px #dc262633}.llmwt-primary{background:#2563eb;color:#fff;border-color:#2563eb}.llmwt-primary:hover{background:#1d4ed8;border-color:#1d4ed8}.llmwt-progress-head{display:flex;align-items:center;justify-content:space-between;gap:12px}.llmwt-progress-label{min-width:0;font-size:14px;font-weight:600;color:#1e293b}.llmwt-progress-percent{flex:none;color:#2563eb;font-size:14px;font-weight:700;font-variant-numeric:tabular-nums}.llmwt-progress-track{height:9px;margin-top:11px;overflow:hidden;border-radius:999px;background:#e2e8f0}.llmwt-progress-bar{height:100%;width:0;border-radius:inherit;background:linear-gradient(90deg,#2563eb,#38bdf8);box-shadow:0 0 8px #38bdf866;transition:width .2s ease}.llmwt-translation{display:inline;margin-left:.35em;color:#1d4ed8;font-style:italic}`;
+  style.textContent = `[${ATTR}]{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.4;box-sizing:border-box}.llmwt-icon{display:block;width:16px;height:16px;flex:none}.llmwt-float{position:fixed;z-index:2147483647;display:inline-flex;align-items:center;gap:6px;border:0;border-radius:18px;background:#2563eb;color:#fff;padding:8px 12px;box-shadow:0 4px 14px #0004;font:650 13px/1.2 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;cursor:pointer;transition:background-color .16s,transform .16s}.llmwt-float:hover{background:#1d4ed8;transform:translateY(-1px)}.llmwt-float:focus-visible{outline:3px solid #93c5fd;outline-offset:2px}.llmwt-popover{position:fixed;z-index:2147483647;max-width:360px;background:#111827;color:#fff;border-radius:9px;padding:12px 38px 12px 13px;box-shadow:0 6px 20px #0005;white-space:pre-wrap}.llmwt-popover-close{position:absolute;right:8px;top:8px;width:24px;height:24px;display:grid;place-items:center;padding:0;border:0;border-radius:6px;background:#ffffff14;color:#fff;cursor:pointer}.llmwt-popover-close:hover{background:#ffffff28}.llmwt-popover-close .llmwt-icon{width:14px;height:14px}.llmwt-panel{position:fixed;right:20px;bottom:20px;z-index:2147483647;width:min(340px,calc(100vw - 40px));background:#fff;color:#111827;border:1px solid #e2e8f0;border-radius:14px;padding:16px;box-shadow:0 14px 38px #0f172a2e}.llmwt-panel-message{font-size:14px;color:#334155}.llmwt-panel-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}.llmwt-action{appearance:none;display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid transparent;border-radius:8px;padding:8px 13px;font:600 13px/1.2 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;cursor:pointer;transition:background-color .16s,border-color .16s,box-shadow .16s,transform .16s}.llmwt-action:hover{transform:translateY(-1px)}.llmwt-action:focus-visible{outline:3px solid #93c5fd;outline-offset:2px}.llmwt-secondary{background:#f1f5f9;color:#334155;border-color:#cbd5e1}.llmwt-secondary:hover{background:#e2e8f0;border-color:#94a3b8}.llmwt-danger{background:#dc2626;color:#fff;border-color:#dc2626}.llmwt-danger:hover{background:#b91c1c;border-color:#b91c1c;box-shadow:0 4px 10px #dc262633}.llmwt-primary{background:#2563eb;color:#fff;border-color:#2563eb}.llmwt-primary:hover{background:#1d4ed8;border-color:#1d4ed8}.llmwt-progress-head{display:flex;align-items:center;justify-content:space-between;gap:12px}.llmwt-progress-label{min-width:0;font-size:14px;font-weight:600;color:#1e293b}.llmwt-progress-percent{flex:none;color:#2563eb;font-size:14px;font-weight:700;font-variant-numeric:tabular-nums}.llmwt-progress-track{height:9px;margin-top:11px;overflow:hidden;border-radius:999px;background:#e2e8f0}.llmwt-progress-bar{height:100%;width:0;border-radius:inherit;background:linear-gradient(90deg,#2563eb,#38bdf8);box-shadow:0 0 8px #38bdf866;transition:width .2s ease}.llmwt-translation{display:inline;margin-left:.35em;color:#1d4ed8;font-style:italic}`;
   document.documentElement.append(style);
 }
 
@@ -63,18 +81,18 @@ function showPopover(message: string, x: number, y: number, closable = true, onC
   popover.setAttribute(ATTR, "");
   popover.style.left = `${Math.max(8, x)}px`; popover.style.top = `${Math.max(8, y)}px`;
   popover.textContent = message;
-  if (closable) { const close = document.createElement("button"); close.textContent = "×"; close.onclick = () => { onClose?.(); removePopover(); }; popover.append(close); }
+  if (closable) { const close = document.createElement("button"); close.type = "button"; close.className = "llmwt-popover-close"; close.setAttribute("aria-label", ui.close); close.append(createIcon("close")); close.onclick = () => { onClose?.(); removePopover(); }; popover.append(close); }
   document.documentElement.append(popover);
 }
 
 type ButtonStyle = "primary" | "secondary" | "danger";
-type PanelButton = [label: string, handler: () => void, style?: ButtonStyle];
+type PanelButton = [label: string, handler: () => void, style: ButtonStyle | undefined, icon: IconName];
 
-function createActionButton(label: string, handler: () => void, style: ButtonStyle = "secondary") {
+function createActionButton(label: string, handler: () => void, style: ButtonStyle | undefined, icon: IconName) {
   const button = document.createElement("button");
   button.type = "button";
-  button.className = `llmwt-action llmwt-${style}`;
-  button.textContent = label;
+  button.className = `llmwt-action llmwt-${style ?? "secondary"}`;
+  button.append(createIcon(icon), document.createTextNode(label));
   button.onclick = handler;
   return button;
 }
@@ -85,7 +103,7 @@ function showPanel(message: string, buttons: PanelButton[]) {
   const text = document.createElement("div"); text.className = "llmwt-panel-message"; text.textContent = message; panel.append(text);
   if (buttons.length) {
     const actions = document.createElement("div"); actions.className = "llmwt-panel-actions";
-    for (const [label, handler, style] of buttons) actions.append(createActionButton(label, () => { handler(); panel.remove(); }, style));
+    for (const [label, handler, style, icon] of buttons) actions.append(createActionButton(label, () => { handler(); panel.remove(); }, style, icon));
     panel.append(actions);
   }
   document.documentElement.append(panel);
@@ -104,8 +122,8 @@ function showProgressPanel(taskId: string, total: number) {
   track.append(progressBar);
   const actions = document.createElement("div"); actions.className = "llmwt-panel-actions";
   actions.append(
-    createActionButton(ui.restore, () => { restoreAndCancel(); panel.remove(); }, "secondary"),
-    createActionButton(ui.cancel, () => { chrome.runtime.sendMessage({ kind: "cancelTask", taskId } satisfies RuntimeMessage); panel.remove(); }, "danger")
+    createActionButton(ui.restore, () => { restoreAndCancel(); panel.remove(); }, "secondary", "restore"),
+    createActionButton(ui.cancel, () => { chrome.runtime.sendMessage({ kind: "cancelTask", taskId } satisfies RuntimeMessage); panel.remove(); }, "danger", "cancel")
   );
   panel.append(head, track, actions);
   document.documentElement.append(panel);
@@ -151,7 +169,7 @@ function selectedText() {
   if (!text || !range) return;
   const rect = range.getBoundingClientRect();
   floatingButton?.remove();
-  floatingButton = document.createElement("button"); floatingButton.className = "llmwt-float"; floatingButton.setAttribute(ATTR, ""); floatingButton.textContent = ui.translate;
+  floatingButton = document.createElement("button"); floatingButton.type = "button"; floatingButton.className = "llmwt-float"; floatingButton.setAttribute(ATTR, ""); floatingButton.append(createIcon("translate"), document.createTextNode(ui.translate));
   floatingButton.style.left = `${Math.max(8, rect.left)}px`; floatingButton.style.top = `${Math.max(8, rect.bottom + 6)}px`;
   floatingButton.onclick = () => {
     if (selectionRequestId) chrome.runtime.sendMessage({ kind: "cancelSelection", requestId: selectionRequestId } satisfies RuntimeMessage);
@@ -171,12 +189,12 @@ chrome.runtime.onMessage.addListener((message: RuntimeMessage) => {
     restorePage(); const allNodes = collectNodes(); const nodes = allNodes.slice(0, message.maxNodes);
     let cancelled = false;
     const limitNote = allNodes.length > nodes.length ? ` ${allNodes.length - nodes.length} ${ui.remaining}.` : "";
-    showPanel(`${nodes.length} ${ui.nodes}, ${message.maxRequests} ${ui.requests}.${limitNote} ${ui.starting}`, [[ui.cancel, () => { cancelled = true; if (pageStartTimer !== null) window.clearTimeout(pageStartTimer); pageStartTimer = null; }, "danger"]]);
+    showPanel(`${nodes.length} ${ui.nodes}, ${message.maxRequests} ${ui.requests}.${limitNote} ${ui.starting}`, [[ui.cancel, () => { cancelled = true; if (pageStartTimer !== null) window.clearTimeout(pageStartTimer); pageStartTimer = null; }, "danger", "cancel"]]);
     pageStartTimer = window.setTimeout(() => { pageStartTimer = null; if (!cancelled) chrome.runtime.sendMessage({ kind: "startPage", nodes } satisfies RuntimeMessage); }, 350);
   }
   if (message.kind === "selectionResult" && message.requestId === selectionRequestId) { selectionRequestId = null; const rect = window.getSelection()?.rangeCount ? window.getSelection()!.getRangeAt(0).getBoundingClientRect() : new DOMRect(16, 16); showPopover(message.text, rect.left, rect.bottom + 10); }
   if (message.kind === "selectionError" && message.requestId === selectionRequestId) { selectionRequestId = null; showPopover(message.error, 16, 16); }
-  if (message.kind === "taskError") showPanel(message.error, [[ui.openSettings, () => chrome.runtime.openOptionsPage()]]);
+  if (message.kind === "taskError") showPanel(message.error, [[ui.openSettings, () => chrome.runtime.openOptionsPage(), "secondary", "settings"]]);
   if (message.kind === "taskStarted") { currentMode = message.mode; activeTaskId = message.taskId; progressTotal = message.total; progressProcessed = 0; progressFailed = 0; showProgressPanel(message.taskId, message.total); }
   if (message.kind === "nodeResult" && message.taskId === activeTaskId) { applyTranslation(message.nodeId, message.text); progressProcessed += 1; updateProgress(); }
   if (message.kind === "nodeFailed" && message.taskId === activeTaskId) { progressProcessed += 1; progressFailed += 1; updateProgress(); }
@@ -188,5 +206,5 @@ function showTaskSummary(summary: TaskSummary) {
   if (summary.taskId !== activeTaskId) return;
   const state = summary.cancelled ? ui.cancelled : summary.failed.length ? ui.partial : ui.complete;
   const failedPreview = summary.failed.slice(0, 3).map((node) => node.text.trim().slice(0, 40)).filter(Boolean).join(" · ");
-  showPanel(`${state}: ${summary.succeeded}/${summary.total}.${failedPreview ? ` ${ui.failed}: ${failedPreview}` : ""}`, [[ui.restore, restorePage], ...(summary.failed.length ? [[ui.retry, () => chrome.runtime.sendMessage({ kind: "retryNodes", nodes: summary.failed } satisfies RuntimeMessage)] as [string, () => void]] : [])]);
+  showPanel(`${state}: ${summary.succeeded}/${summary.total}.${failedPreview ? ` ${ui.failed}: ${failedPreview}` : ""}`, [[ui.restore, restorePage, "secondary", "restore"], ...(summary.failed.length ? [[ui.retry, () => chrome.runtime.sendMessage({ kind: "retryNodes", nodes: summary.failed } satisfies RuntimeMessage), "secondary", "retry"] as PanelButton] : [])]);
 }
