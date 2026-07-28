@@ -7,13 +7,58 @@ describe("profile connection test", () => {
   const stored: Record<string, unknown> = {};
   const set = vi.fn(async (value: Record<string, unknown>) => Object.assign(stored, value));
   const sendMessage = vi.fn(async () => undefined);
+  const writeText = vi.fn(async () => undefined);
 
   beforeEach(() => {
     vi.resetModules(); vi.clearAllMocks();
     Object.keys(stored).forEach((key) => delete stored[key]);
     document.body.innerHTML = '<main id="app"></main>';
     globalThis.chrome = { storage: { local: { get: vi.fn(async () => stored), set } }, runtime: { sendMessage } } as unknown as typeof chrome;
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
     translate.mockResolvedValue("Hello");
+  });
+
+  it("adds Translation before Settings and disables translation until a model is configured", async () => {
+    await import("./options");
+    await vi.waitFor(() => expect(document.querySelector("#translate-tab")).not.toBeNull());
+    expect(Array.from(document.querySelectorAll(".tab"), (tab) => tab.id)).toEqual(["translate-tab", "settings-tab", "about-tab"]);
+    (document.querySelector("#translate-tab") as HTMLButtonElement).click();
+    expect(document.querySelector(".translator-page")).not.toBeNull();
+    expect((document.querySelector("#translation-input") as HTMLTextAreaElement).placeholder).toBe("Enter text to translate");
+    expect((document.querySelector("#translate-text") as HTMLButtonElement).disabled).toBe(true);
+    expect(document.querySelector(".model-required")?.textContent).toContain("Configure and activate a model");
+  });
+
+  it("translates text, shows character count, saves history, copies, and retranslates", async () => {
+    stored.settings = { activeProfileId: "one", profiles: [
+      { id: "one", name: "One", baseUrl: "https://one.example/v1", apiKey: "1", model: "m1", sourceLanguage: "en", targetLanguage: "zh-CN", mode: "replace" }
+    ] };
+    translate.mockResolvedValue("你好");
+    await import("./options");
+    await vi.waitFor(() => expect(document.querySelector("#translate-tab")).not.toBeNull());
+    (document.querySelector("#translate-tab") as HTMLButtonElement).click();
+    const input = document.querySelector<HTMLTextAreaElement>("#translation-input")!;
+    input.value = "Hello"; input.dispatchEvent(new Event("input"));
+    expect(document.querySelector(".character-count")?.textContent).toContain("5");
+    (document.querySelector("#translate-text") as HTMLButtonElement).click();
+
+    await vi.waitFor(() => expect(document.querySelector(".translation-output")?.textContent).toContain("你好"));
+    expect(translate).toHaveBeenCalledWith(expect.objectContaining({ sourceLanguage: "en", targetLanguage: "zh-CN" }), "Hello");
+    expect((stored.settings as { translationHistory: unknown[] }).translationHistory).toHaveLength(1);
+    expect(document.querySelectorAll(".history-card")).toHaveLength(1);
+
+    (document.querySelector("#copy-result") as HTMLButtonElement).click();
+    await vi.waitFor(() => expect(writeText).toHaveBeenCalledWith("你好"));
+    (document.querySelector("#retranslate-result") as HTMLButtonElement).click();
+    await vi.waitFor(() => expect(translate).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => expect(document.querySelectorAll(".history-card")).toHaveLength(2));
+    (document.querySelector('[data-history-action="copy"]') as HTMLButtonElement).click();
+    await vi.waitFor(() => expect(writeText).toHaveBeenCalledTimes(2));
+    (document.querySelector('[data-history-action="retranslate"]') as HTMLButtonElement).click();
+    await vi.waitFor(() => expect(translate).toHaveBeenCalledTimes(3));
+    (document.querySelector("#clear-translation") as HTMLButtonElement).click();
+    expect((document.querySelector("#translation-input") as HTMLTextAreaElement).value).toBe("");
+    expect(document.querySelector(".character-count")?.textContent).toContain("0");
   });
 
   it("persists and activates a profile after a successful connection test", async () => {

@@ -13,7 +13,16 @@ export interface Profile {
   mode: TranslationMode;
 }
 
-export interface Settings { profiles: Profile[]; activeProfileId: string | null; uiLocale?: UiLocalePreference; }
+export interface TranslationHistoryEntry {
+  id: string;
+  sourceText: string;
+  translatedText: string;
+  sourceLanguage: string;
+  targetLanguage: string;
+  createdAt: number;
+}
+
+export interface Settings { profiles: Profile[]; activeProfileId: string | null; uiLocale?: UiLocalePreference; translationHistory?: TranslationHistoryEntry[]; }
 export interface PageNode { id: string; text: string; }
 export interface TaskSummary { taskId: string; total: number; succeeded: number; failed: PageNode[]; cancelled: boolean; }
 export type PageTaskType = "initial" | "append" | "retry";

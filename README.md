@@ -18,7 +18,7 @@ Open `chrome://extensions` or `edge://extensions`, enable developer mode, choose
 3. Select webpage text and choose **Translate selected text** from the context menu, or use the page context menu for full-page translation.
 4. Use the page panel to monitor progress, cancel, retry failures, or restore the original page.
 
-Profiles and API keys are stored only in `chrome.storage.local`. Page text and translations are not persisted.
+Profiles, API keys, and the 30 most recent successful translations entered on the Translate page are stored only in `chrome.storage.local`. Translated webpage content is not persisted.
 
 ## Localization
 

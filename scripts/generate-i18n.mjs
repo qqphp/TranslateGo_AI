@@ -20,6 +20,13 @@ const contentFields = {
   running: "contentRunning", failed: "contentFailed", cancelled: "contentCancelled", retry: "contentRetry", nodes: "contentSegmentsSent",
   requestLimit: "contentRequestLimit", starting: "contentStarting", newContent: "contentNewContent", completion: "contentCompletion", partialCompletion: "contentPartialCompletion"
 };
+const optionsFields = {
+  translateTab: "translateTab", translatorEyebrow: "translatorEyebrow", translatorTitle: "translatorTitle", translationInput: "translationInput",
+  inputPlaceholder: "inputPlaceholder", characterCount: "characterCount", clear: "clear", translateAction: "translateAction",
+  translationInProgress: "translationInProgress", modelRequired: "modelRequired", translationFailed: "translationFailed",
+  translationResultEyebrow: "translationResultEyebrow", translationResult: "translationResult", resultPlaceholder: "resultPlaceholder",
+  copy: "copy", retranslate: "retranslate", historyEyebrow: "historyEyebrow", historyTitle: "historyTitle", noHistory: "noHistory"
+};
 
 const server = await createServer({ root: fileURLToPath(root), server: { middlewareMode: true }, appType: "custom", logLevel: "silent" });
 let localeMessages;
@@ -50,6 +57,7 @@ function placeholders(value) {
 
 const englishContent = selectFields("en", contentFields);
 const englishBrowser = selectFields("en", browserFields);
+const englishOptions = selectFields("en", optionsFields);
 const contentMessages = Object.fromEntries(locales.map((locale) => {
   const messages = selectFields(locale, contentFields);
   for (const key of Object.keys(messages)) {
@@ -58,6 +66,14 @@ const contentMessages = Object.fromEntries(locales.map((locale) => {
   }
   return [locale, messages];
 }));
+
+for (const locale of locales) {
+  const messages = selectFields(locale, optionsFields);
+  for (const key of Object.keys(messages)) {
+    if (placeholders(messages[key]) !== placeholders(englishOptions[key])) throw new Error(`Locale ${locale} has invalid placeholders for ${key}.`);
+    if (locale !== "en" && messages[key] === englishOptions[key]) throw new Error(`Locale ${locale} has not translated ${optionsFields[key]}.`);
+  }
+}
 
 const generatedDirectory = new URL("src/generated/", root);
 await mkdir(generatedDirectory, { recursive: true });
