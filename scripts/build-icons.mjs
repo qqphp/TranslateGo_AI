@@ -21,24 +21,41 @@ function chunk(type, data) {
   return result;
 }
 
+function distanceToSegment(x, y, x1, y1, x2, y2) {
+  const dx = x2 - x1; const dy = y2 - y1;
+  const lengthSquared = dx * dx + dy * dy;
+  const t = lengthSquared ? Math.max(0, Math.min(1, ((x - x1) * dx + (y - y1) * dy) / lengthSquared)) : 0;
+  return Math.hypot(x - (x1 + t * dx), y - (y1 + t * dy));
+}
+
 function icon(size) {
   const pixels = Buffer.alloc(size * size * 4);
-  const radius = size * 0.2;
+  const samples = 4;
+  const strokes = [
+    [0.13, 0.80, 0.34, 0.20], [0.34, 0.20, 0.55, 0.80], [0.21, 0.59, 0.47, 0.59],
+    [0.62, 0.22, 0.86, 0.22], [0.74, 0.22, 0.74, 0.80], [0.62, 0.80, 0.86, 0.80]
+  ];
   for (let y = 0; y < size; y += 1) for (let x = 0; x < size; x += 1) {
-    const dx = Math.max(radius - x, 0, x - (size - 1 - radius));
-    const dy = Math.max(radius - y, 0, y - (size - 1 - radius));
-    const inside = dx * dx + dy * dy <= radius * radius;
     const offset = (y * size + x) * 4;
-    if (!inside) continue;
-    const gradient = Math.round(28 * y / size);
-    pixels[offset] = 37; pixels[offset + 1] = 99 + gradient; pixels[offset + 2] = 235; pixels[offset + 3] = 255;
-    const nx = x / size; const ny = y / size;
-    const leftStroke = Math.abs(nx - (0.28 + (0.5 - ny) * 0.28)) < 0.055;
-    const rightStroke = Math.abs(nx - (0.72 - (0.5 - ny) * 0.28)) < 0.055;
-    const cross = ny > 0.53 && ny < 0.62 && nx > 0.33 && nx < 0.67;
-    if (ny > 0.2 && ny < 0.82 && (leftStroke || rightStroke || cross)) {
-      pixels[offset] = 255; pixels[offset + 1] = 255; pixels[offset + 2] = 255;
+    let backgroundCoverage = 0; let textCoverage = 0;
+    for (let sy = 0; sy < samples; sy += 1) for (let sx = 0; sx < samples; sx += 1) {
+      const nx = (x + (sx + 0.5) / samples) / size;
+      const ny = (y + (sy + 0.5) / samples) / size;
+      const radius = 0.20;
+      const dx = Math.max(radius - nx, 0, nx - (1 - radius));
+      const dy = Math.max(radius - ny, 0, ny - (1 - radius));
+      if (dx * dx + dy * dy > radius * radius) continue;
+      backgroundCoverage += 1;
+      if (strokes.some(([x1, y1, x2, y2]) => distanceToSegment(nx, ny, x1, y1, x2, y2) <= 0.045)) textCoverage += 1;
     }
+    if (!backgroundCoverage) continue;
+    const alpha = backgroundCoverage / (samples * samples);
+    const white = textCoverage / backgroundCoverage;
+    const gradient = 28 * (y + 0.5) / size;
+    pixels[offset] = Math.round(37 * (1 - white) + 255 * white);
+    pixels[offset + 1] = Math.round((99 + gradient) * (1 - white) + 255 * white);
+    pixels[offset + 2] = Math.round(235 * (1 - white) + 255 * white);
+    pixels[offset + 3] = Math.round(255 * alpha);
   }
   const raw = Buffer.alloc((size * 4 + 1) * size);
   for (let y = 0; y < size; y += 1) pixels.copy(raw, y * (size * 4 + 1) + 1, y * size * 4, (y + 1) * size * 4);
