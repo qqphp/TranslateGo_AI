@@ -31,12 +31,12 @@ describe("background task routing", () => {
     const respond = vi.fn();
     expect(handler({ kind: "appendPage", nodes: [{ id: "node-dynamic", text: "Loaded later" }] }, { tab: { id: 7 } }, respond)).toBe(true);
     await vi.waitFor(() => expect(sendMessage).toHaveBeenCalledWith(7, expect.objectContaining({ kind: "taskStarted", taskType: "append", total: 1 })));
-    await vi.waitFor(() => expect(sendMessage).toHaveBeenCalledWith(7, expect.objectContaining({ kind: "nodeResult", nodeId: "node-dynamic", text: "译文" })));
+    await vi.waitFor(() => expect(sendMessage).toHaveBeenCalledWith(7, expect.objectContaining({ kind: "batchResult", results: [{ nodeId: "node-dynamic", text: "译文" }] })));
     await vi.waitFor(() => expect(sendMessage).toHaveBeenCalledWith(7, expect.objectContaining({ kind: "taskFinished", summary: expect.objectContaining({ succeeded: 1, total: 1 }) })));
     expect(respond).toHaveBeenCalledOnce();
   });
 
-  it("translates 400 page segments without exceeding 50 provider calls", async () => {
+  it("translates 400 page segments with a fast first batch and fewer provider calls", async () => {
     await import("./background");
     const handler = runtimeListener.mock.calls[0][0] as (message: unknown, sender: unknown, respond: () => void) => boolean;
     const nodes = Array.from({ length: 400 }, (_, index) => ({ id: `node-${index}`, text: `Segment ${index}` }));
@@ -47,7 +47,22 @@ describe("background task routing", () => {
       kind: "taskFinished",
       summary: expect.objectContaining({ total: 400, succeeded: 400, failed: [] })
     }), { timeout: 2_000 });
-    expect(translateBatch).toHaveBeenCalledTimes(40);
+    expect(translateBatch).toHaveBeenCalledTimes(17);
+  });
+
+  it("translates duplicate source text once and fans the result out to every node", async () => {
+    await import("./background");
+    const handler = runtimeListener.mock.calls[0][0] as (message: unknown, sender: unknown, respond: () => void) => boolean;
+    const nodes = [
+      { id: "node-0", text: "Repeated navigation" },
+      { id: "node-1", text: "Repeated navigation" },
+      { id: "node-2", text: "Unique content" }
+    ];
+
+    handler({ kind: "startPage", nodes }, { tab: { id: 7 } }, vi.fn());
+    await vi.waitFor(() => expect(sendMessage).toHaveBeenCalledWith(7, expect.objectContaining({ kind: "taskFinished" })));
+    expect(translateBatch).toHaveBeenCalledOnce();
+    expect(translateBatch.mock.calls[0][1]).toHaveLength(2);
   });
 
   it("renders a completed batch without waiting for an earlier slow batch", async () => {
@@ -60,8 +75,8 @@ describe("background task routing", () => {
     const nodes = Array.from({ length: 20 }, (_, index) => ({ id: `node-${index}`, text: `Segment ${index}` }));
 
     handler({ kind: "startPage", nodes }, { tab: { id: 7 } }, vi.fn());
-    await vi.waitFor(() => expect(sendMessage).toHaveBeenCalledWith(7, expect.objectContaining({ kind: "nodeResult", nodeId: "node-10" })));
-    expect(sendMessage).not.toHaveBeenCalledWith(7, expect.objectContaining({ kind: "nodeResult", nodeId: "node-0" }));
+    await vi.waitFor(() => expect(sendMessage).toHaveBeenCalledWith(7, expect.objectContaining({ kind: "batchResult", results: expect.arrayContaining([expect.objectContaining({ nodeId: "node-10" })]) })));
+    expect(sendMessage).not.toHaveBeenCalledWith(7, expect.objectContaining({ kind: "batchResult", results: expect.arrayContaining([expect.objectContaining({ nodeId: "node-0" })]) }));
 
     resolveFirst(new Map(nodes.slice(0, 10).map((node) => [node.id, "slow"])));
     await vi.waitFor(() => expect(sendMessage).toHaveBeenCalledWith(7, expect.objectContaining({ kind: "taskFinished" })));

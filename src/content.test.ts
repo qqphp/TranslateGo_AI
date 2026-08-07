@@ -18,6 +18,13 @@ describe("page translation entry", () => {
     await vi.waitFor(() => expect(sendMessage).toHaveBeenCalledWith(expect.objectContaining({ kind: "startPage", nodes: [expect.objectContaining({ text: "Visible page text" })] })));
   });
 
+  it("starts the page task immediately without an artificial timer delay", async () => {
+    await import("./content");
+    const handler = addListener.mock.calls[0][0] as (message: { kind: string; mode: string; maxRequests: number }) => void;
+    handler({ kind: "preparePage", mode: "replace", maxRequests: 200 });
+    expect(sendMessage).toHaveBeenCalledWith(expect.objectContaining({ kind: "startPage" }));
+  });
+
   it("updates progress after each translated or failed node", async () => {
     await import("./content");
     const handler = addListener.mock.calls[0][0] as (message: unknown) => void;

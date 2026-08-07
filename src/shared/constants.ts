@@ -1,3 +1,4 @@
-export const NODES_PER_REQUEST = 10;
+export const FIRST_BATCH_NODES = 10;
+export const NODES_PER_REQUEST = 25;
 export const MAX_CHARACTERS_PER_REQUEST = 6_000;
 export const MAX_REQUESTS_PER_PAGE_TASK = 200;

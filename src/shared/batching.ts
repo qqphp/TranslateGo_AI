@@ -1,4 +1,4 @@
-import { MAX_CHARACTERS_PER_REQUEST, MAX_REQUESTS_PER_PAGE_TASK, NODES_PER_REQUEST } from "./constants";
+import { FIRST_BATCH_NODES, MAX_CHARACTERS_PER_REQUEST, MAX_REQUESTS_PER_PAGE_TASK, NODES_PER_REQUEST } from "./constants";
 import type { PageNode } from "./types";
 
 export interface TranslationBatchPlan {
@@ -30,7 +30,8 @@ export function planTranslationBatches(
   };
 
   for (const node of nodes) {
-    const exceedsNodeLimit = current.length >= NODES_PER_REQUEST;
+    const nodeLimit = batches.length === 0 ? FIRST_BATCH_NODES : NODES_PER_REQUEST;
+    const exceedsNodeLimit = current.length >= nodeLimit;
     const exceedsCharacterLimit = current.length > 0 && currentCharacters + node.text.length > MAX_CHARACTERS_PER_REQUEST;
     if (exceedsNodeLimit || exceedsCharacterLimit) flush();
     if (batches.length >= maxRequests) break;

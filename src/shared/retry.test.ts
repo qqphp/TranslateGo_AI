@@ -13,4 +13,21 @@ describe("withRetries", () => {
     await expect(withRetries(operation, 3)).resolves.toBe("ok");
     expect(operation).toHaveBeenCalledTimes(2);
   });
+
+  it("does not retry a permanent error", async () => {
+    const operation = vi.fn(async () => { throw new Error("permanent"); });
+    await expect(withRetries(operation, 3, () => false, { shouldRetry: () => false })).rejects.toThrow("permanent");
+    expect(operation).toHaveBeenCalledOnce();
+  });
+
+  it("waits before retrying a recoverable error", async () => {
+    vi.useFakeTimers();
+    const operation = vi.fn().mockRejectedValueOnce(new Error("temporary")).mockResolvedValueOnce("ok");
+    const result = withRetries(operation, 3, () => false, { delayMs: () => 100 });
+    await vi.advanceTimersByTimeAsync(99);
+    expect(operation).toHaveBeenCalledOnce();
+    await vi.advanceTimersByTimeAsync(1);
+    await expect(result).resolves.toBe("ok");
+    vi.useRealTimers();
+  });
 });

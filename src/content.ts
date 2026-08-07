@@ -17,7 +17,6 @@ let progressTotal = 0;
 let progressProcessed = 0;
 let progressFailed = 0;
 let selectionRequestId: string | null = null;
-let pageStartTimer: number | null = null;
 let nextNodeId = 0;
 let trackedText = new WeakMap<Text, string>();
 const pendingDynamicNodes = new Set<Text>();
@@ -74,11 +73,15 @@ function addStyles() {
   document.documentElement.append(style);
 }
 
-function isVisible(node: Text): boolean {
+function isVisible(node: Text, cache?: Map<HTMLElement, boolean>): boolean {
   const parent = node.parentElement;
   if (!parent || parent.closest(`[${ATTR}]`) || parent.closest("script,style,noscript,template,pre,code,kbd,samp,textarea,input,select,option,button")) return false;
+  const cached = cache?.get(parent);
+  if (cached !== undefined) return cached;
   const style = getComputedStyle(parent);
-  return style.display !== "none" && style.visibility !== "hidden" && style.opacity !== "0" && parent.getClientRects().length > 0;
+  const visible = style.display !== "none" && style.visibility !== "hidden" && style.opacity !== "0" && parent.getClientRects().length > 0;
+  cache?.set(parent, visible);
+  return visible;
 }
 
 const paragraphTags = new Set(["P", "LI", "BLOCKQUOTE", "FIGCAPTION", "DT", "DD", "H1", "H2", "H3", "H4", "H5", "H6", "TD", "TH", "CAPTION", "DIV"]);
@@ -120,9 +123,10 @@ function collectNodes(mode: TranslationMode): PageNode[] {
   nextNodeId = 0;
   const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
   const textNodes: Text[] = [];
+  const visibilityCache = new Map<HTMLElement, boolean>();
   let text: Text | null;
   while ((text = walker.nextNode() as Text | null)) {
-    if (!text.data.trim() || !isVisible(text)) continue;
+    if (!text.data.trim() || !isVisible(text, visibilityCache)) continue;
     trackedText.set(text, text.data);
     textNodes.push(text);
   }
@@ -195,6 +199,10 @@ function showPopover(message: string, x: number, y: number, closable = true, onC
   popover.textContent = message;
   if (closable) { const close = document.createElement("button"); close.type = "button"; close.className = "llmwt-popover-close"; close.setAttribute("aria-label", ui.close); close.append(createIcon("close")); close.onclick = () => { onClose?.(); removePopover(); }; popover.append(close); }
   document.documentElement.append(popover);
+}
+
+function updatePopoverText(message: string) {
+  if (popover?.firstChild instanceof Text) popover.firstChild.data = message;
 }
 
 type ButtonStyle = "primary" | "secondary" | "danger";
@@ -290,13 +298,12 @@ function applyTranslation(nodeId: string, translation: string) {
     result.className = "llmwt-translation";
     source.append(result);
     preservedTranslations.set(source, result);
+    matchSourceStyle(result, source);
   }
-  matchSourceStyle(result, source);
   result.textContent = translation;
 }
 
 function restorePage() {
-  if (pageStartTimer !== null) { window.clearTimeout(pageStartTimer); pageStartTimer = null; }
   stopDynamicMonitoring();
   originalText.forEach((original, node) => { node.data = original; });
   originalText.clear();
@@ -325,20 +332,33 @@ addStyles();
 chrome.runtime.onMessage.addListener((message: RuntimeMessage) => {
   if (message.kind === "preparePage") {
     restorePage(); currentMode = message.mode;
+    const scanStartedAt = performance.now();
     const nodes = collectNodes(message.mode);
+    const scanMs = performance.now() - scanStartedAt;
     startDynamicMonitoring();
-    let cancelled = false;
-    showPanel(`${nodes.length} ${ui.nodes}; ${formatMessage(ui.requestLimit, { count: message.maxRequests })}. ${ui.starting}`, [[ui.cancel, () => { cancelled = true; stopDynamicMonitoring(); if (pageStartTimer !== null) window.clearTimeout(pageStartTimer); pageStartTimer = null; }, "danger", "cancel"]]);
-    pageStartTimer = window.setTimeout(() => { pageStartTimer = null; if (!cancelled) { taskInProgress = true; chrome.runtime.sendMessage({ kind: "startPage", nodes } satisfies RuntimeMessage); } }, 350);
+    showPanel(`${nodes.length} ${ui.nodes}; ${formatMessage(ui.requestLimit, { count: message.maxRequests })}. ${ui.starting}`, []);
+    taskInProgress = true;
+    chrome.runtime.sendMessage({ kind: "startPage", nodes, scanMs } satisfies RuntimeMessage);
   }
   if (message.kind === "translateSelectionFromMenu") translateSelectionFromMenu(message.text);
+  if (message.kind === "selectionChunk" && message.requestId === selectionRequestId) updatePopoverText(message.text);
   if (message.kind === "selectionResult" && message.requestId === selectionRequestId) { selectionRequestId = null; showPopover(message.text, selectionPopoverX, selectionPopoverY); }
   if (message.kind === "selectionError" && message.requestId === selectionRequestId) { selectionRequestId = null; showPopover(message.error, selectionPopoverX, selectionPopoverY); }
   if (message.kind === "taskError") { taskInProgress = false; stopDynamicMonitoring(); showPanel(message.error, [[ui.openSettings, () => chrome.runtime.openOptionsPage(), "secondary", "settings"]]); }
   if (message.kind === "taskStarted") { currentMode = message.mode; activeTaskId = message.taskId; taskInProgress = true; progressTotal = message.total; progressProcessed = 0; progressFailed = 0; showProgressPanel(message.taskId, message.total, message.taskType); }
   if (message.kind === "nodeResult" && message.taskId === activeTaskId) { applyTranslation(message.nodeId, message.text); progressProcessed += 1; updateProgress(); }
+  if (message.kind === "batchResult" && message.taskId === activeTaskId) {
+    for (const result of message.results) applyTranslation(result.nodeId, result.text);
+    progressProcessed += message.results.length;
+    updateProgress();
+  }
   if (message.kind === "nodeFailed" && message.taskId === activeTaskId) { progressProcessed += 1; progressFailed += 1; updateProgress(); }
-  if (message.kind === "taskFinished" && message.summary.taskId === activeTaskId) { taskInProgress = false; showTaskSummary(message.summary); if (watchingDynamicContent && pendingDynamicNodes.size) scheduleDynamicTranslation(); }
+  if (message.kind === "taskFinished" && message.summary.taskId === activeTaskId) {
+    taskInProgress = false;
+    if (message.summary.performance) console.debug("[LLMWT performance]", message.summary.performance);
+    showTaskSummary(message.summary);
+    if (watchingDynamicContent && pendingDynamicNodes.size) scheduleDynamicTranslation();
+  }
   if (message.kind === "restorePage") restorePage();
 });
 

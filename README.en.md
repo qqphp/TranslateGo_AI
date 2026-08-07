@@ -14,7 +14,8 @@ A lightweight Manifest V3 translation extension for Chrome and Microsoft Edge. I
 - **Full-page translation**: Extract visible page content while skipping code, form controls, buttons, and hidden text.
 - **Two display modes**: Replace the original text or preserve it in a bilingual comparison layout.
 - **Dynamic content support**: Continue watching for lazy-loaded or newly inserted content and translate it as it appears.
-- **Batching and concurrency**: Combine up to 10 text nodes or 6,000 characters per request, process up to five requests concurrently, and automatically retry failures.
+- **Adaptive batching and concurrency**: Use up to 10 nodes in the first batch for fast feedback, then up to 25 nodes or 6,000 characters; concurrency adapts between five and eight requests and only recoverable failures are retried.
+- **Thinking disabled**: Every translation request sends `thinking: { type: "disabled" }` to avoid spending time generating reasoning for translation work.
 - **Large-page support**: Allow up to 200 model requests per page task. Overflow is reported explicitly instead of being silently discarded.
 - **Multilingual interface**: Includes 17 interface and target languages, with automatic source-language detection.
 - **Local-first design**: No product backend, advertising, or telemetry. Profiles and translation history remain in local browser storage.

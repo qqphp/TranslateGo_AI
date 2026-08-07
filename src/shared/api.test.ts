@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanTranslation, parseBatchOutput, translate, translateBatch } from "./api";
+import { cleanTranslation, parseBatchOutput, translate, translateBatch, translateStreaming } from "./api";
 import type { Profile } from "./types";
 
 const profile: Profile = { id: "p", name: "Test", baseUrl: "https://api.example.com/v1", apiKey: "secret", model: "demo", sourceLanguage: "English", targetLanguage: "Chinese", mode: "replace" };
@@ -41,8 +41,29 @@ describe("Chat Completions client", () => {
     vi.stubGlobal("fetch", fetch);
     await expect(translate(profile, "Hello")).resolves.toBe("你好");
     const request = JSON.parse(String(fetch.mock.calls[0][1]?.body));
-    expect(request).toMatchObject({ model: "demo", stream: false });
+    expect(request).toMatchObject({ model: "demo", stream: false, thinking: { type: "disabled" } });
     expect(fetch.mock.calls[0][1]?.headers).toMatchObject({ Authorization: "Bearer secret" });
+  });
+
+  it("disables thinking mode for every model", async () => {
+    const fetch = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response(JSON.stringify({ choices: [{ message: { content: "你好" } }] }), { status: 200 }));
+    vi.stubGlobal("fetch", fetch);
+    await translate(profile, "Hello");
+    expect(JSON.parse(String(fetch.mock.calls[0][1]?.body))).toMatchObject({ thinking: { type: "disabled" } });
+  });
+
+  it("streams partial text for faster selected-text feedback", async () => {
+    const payload = [
+      'data: {"choices":[{"delta":{"content":"你"}}]}\n\n',
+      'data: {"choices":[{"delta":{"content":"好"}}]}\n\n',
+      "data: [DONE]\n\n"
+    ].join("");
+    const fetch = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response(payload, { status: 200, headers: { "Content-Type": "text/event-stream" } }));
+    vi.stubGlobal("fetch", fetch);
+    const partials: string[] = [];
+    await expect(translateStreaming(profile, "Hello", (text) => partials.push(text))).resolves.toBe("你好");
+    expect(partials).toEqual(["你", "你好"]);
+    expect(JSON.parse(String(fetch.mock.calls[0][1]?.body))).toMatchObject({ stream: true, thinking: { type: "disabled" } });
   });
 
   it("asks the model to detect an automatic source language", async () => {
