@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const translate = vi.fn();
 vi.mock("./shared/api", async (importOriginal) => ({ ...(await importOriginal<typeof import("./shared/api")>()), translate }));
+const fetchModels = vi.fn();
+vi.mock("./shared/models", () => ({ fetchModels }));
 
 describe("profile connection test", () => {
   const stored: Record<string, unknown> = {};
@@ -21,6 +23,7 @@ describe("profile connection test", () => {
     globalThis.chrome = { storage: { local: { get: vi.fn(async () => stored), set } }, runtime: { sendMessage } } as unknown as typeof chrome;
     Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
     translate.mockResolvedValue("Hello");
+    fetchModels.mockResolvedValue(["gpt-4o-mini", "gpt-4.1"]);
   });
 
   it("adds Translation before Settings and disables translation until a model is configured", async () => {
@@ -74,11 +77,66 @@ describe("profile connection test", () => {
     (form.elements.namedItem("name") as HTMLInputElement).value = "My API";
     (form.elements.namedItem("baseUrl") as HTMLInputElement).value = "https://api.example.com/v1";
     (form.elements.namedItem("apiKey") as HTMLInputElement).value = "secret";
-    (form.elements.namedItem("model") as HTMLInputElement).value = "demo";
+    const model = form.elements.namedItem("model") as HTMLSelectElement;
+    model.add(new Option("demo", "demo")); model.value = "demo";
     (document.querySelector("#test") as HTMLButtonElement).click();
     await vi.waitFor(() => expect(set).toHaveBeenCalledOnce());
     expect(stored.settings).toMatchObject({ activeProfileId: expect.any(String), profiles: [expect.objectContaining({ name: "My API" })] });
     expect(sendMessage).toHaveBeenCalledWith({ kind: "profilesChanged" });
+  });
+
+  it("validates the required name before testing a connection", async () => {
+    await import("./options");
+    await openSettings();
+    const form = document.querySelector<HTMLFormElement>("#profile-form")!;
+    (form.elements.namedItem("baseUrl") as HTMLInputElement).value = "https://api.example.com/v1";
+    (form.elements.namedItem("apiKey") as HTMLInputElement).value = "secret";
+    const model = form.elements.namedItem("model") as HTMLSelectElement;
+    model.add(new Option("demo", "demo")); model.value = "demo";
+    (document.querySelector("#test") as HTMLButtonElement).click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect((form.elements.namedItem("name") as HTMLInputElement).validity.valueMissing).toBe(true);
+    expect(translate).not.toHaveBeenCalled();
+    expect(set).not.toHaveBeenCalled();
+  });
+
+  it("marks all five required profile fields visibly and semantically", async () => {
+    await import("./options");
+    await openSettings();
+    const form = document.querySelector<HTMLFormElement>("#profile-form")!;
+    expect(Array.from(form.querySelectorAll<HTMLElement>(".required-mark"), (mark) => mark.textContent)).toEqual(["*", "*", "*", "*", "*"]);
+    for (const name of ["name", "provider", "baseUrl", "apiKey", "model"]) {
+      expect((form.elements.namedItem(name) as HTMLInputElement | HTMLSelectElement).required).toBe(true);
+    }
+  });
+
+  it("sets a preset Base URL and retrieves models only after an API key is entered", async () => {
+    await import("./options");
+    await openSettings();
+    await vi.waitFor(() => expect(document.querySelector("#provider")).not.toBeNull());
+    const provider = document.querySelector<HTMLSelectElement>("#provider")!;
+    const form = document.querySelector<HTMLFormElement>("#profile-form")!;
+    const baseUrl = form.elements.namedItem("baseUrl") as HTMLInputElement;
+    const apiKey = form.elements.namedItem("apiKey") as HTMLInputElement;
+    const model = form.elements.namedItem("model") as HTMLSelectElement;
+    const button = document.querySelector<HTMLButtonElement>("#fetch-models")!;
+    expect(model.tagName).toBe("SELECT");
+    expect(document.querySelector('input[name="model"]')).toBeNull();
+    expect(model.value).toBe("");
+    expect(model.options[0].textContent).toBe("Select a model");
+    expect(button.disabled).toBe(true);
+    provider.value = "openai"; provider.dispatchEvent(new Event("change"));
+    expect(baseUrl.value).toBe("https://api.openai.com/v1");
+    apiKey.value = "secret"; apiKey.dispatchEvent(new Event("input"));
+    expect(button.disabled).toBe(false);
+    button.click();
+    await vi.waitFor(() => expect(fetchModels).toHaveBeenCalledWith("https://api.openai.com/v1", "secret"));
+    const availableModels = document.querySelector<HTMLSelectElement>("#available-models")!;
+    expect(availableModels).toBe(model);
+    expect(Array.from(availableModels.options, (option) => option.value)).toEqual(["", "gpt-4o-mini", "gpt-4.1"]);
+    expect(model.value).toBe("");
+    availableModels.value = "gpt-4.1"; availableModels.dispatchEvent(new Event("change"));
+    expect(model.value).toBe("gpt-4.1");
   });
 
   it("switches the active profile with one click", async () => {

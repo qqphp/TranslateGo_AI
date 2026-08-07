@@ -1,5 +1,7 @@
 import { translate } from "./shared/api";
 import { getSettings, saveSettings, validateBaseUrl } from "./shared/storage";
+import { fetchModels } from "./shared/models";
+import { MODEL_PROVIDERS, providerForBaseUrl } from "./shared/providers";
 import { localeNames, setLocale, t } from "./shared/i18n";
 import { LANGUAGE_OPTIONS, normalizeLanguage } from "./shared/languages";
 import { addTranslationHistory, getTranslationHistory } from "./shared/translation-history";
@@ -18,7 +20,7 @@ let translationPending = false;
 let translationError = "";
 let translationRequestId = 0;
 
-type IconName = "settings" | "info" | "profile" | "plus" | "save" | "test" | "trash" | "check" | "close" | "model" | "language" | "gift" | "sparkles" | "selection" | "bilingual" | "globe" | "shield" | "focus" | "accurate" | "flow" | "natural" | "translate" | "copy" | "refresh" | "clear" | "history";
+type IconName = "settings" | "info" | "profile" | "plus" | "save" | "test" | "trash" | "check" | "close" | "model" | "language" | "gift" | "sparkles" | "selection" | "bilingual" | "globe" | "shield" | "focus" | "accurate" | "flow" | "natural" | "translate" | "copy" | "refresh" | "clear" | "history" | "download";
 
 const iconPaths: Record<IconName, string> = {
   settings: '<path d="M4 7h10M4 12h16M16 7h4M4 17h4M10 17h10"/><circle cx="12" cy="7" r="2"/><circle cx="8" cy="17" r="2"/>',
@@ -46,11 +48,13 @@ const iconPaths: Record<IconName, string> = {
   copy: '<rect x="8" y="8" width="11" height="11" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>',
   refresh: '<path d="M20 7V3m0 0h-4M20 3l-3 3a7 7 0 0 0-11 2M4 17v4m0 0h4m-4 0 3-3a7 7 0 0 0 11-2"/>',
   clear: '<path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13"/>',
-  history: '<path d="M4 12a8 8 0 1 0 2-5.3L4 9M4 4v5h5M12 8v5l3 2"/>'
+  history: '<path d="M4 12a8 8 0 1 0 2-5.3L4 9M4 4v5h5M12 8v5l3 2"/>',
+  download: '<path d="M12 3v12m0 0 4-4m-4 4-4-4M5 19h14"/>'
 };
 
 const icon = (name: IconName, className = "icon") => `<svg class="${className}" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${iconPaths[name]}</svg>`;
 const buttonContent = (name: IconName, label: string) => `${icon(name)}<span>${escape(label)}</span>`;
+const requiredLabel = (label: string) => `<span class="field-label">${escape(label)}<span class="required-mark" aria-hidden="true">*</span></span>`;
 const newProfile = (): Profile => ({ id: crypto.randomUUID(), name: "", baseUrl: "", apiKey: "", model: "", sourceLanguage: "auto", targetLanguage: "zh-CN", mode: "replace" });
 const escape = (value: string) => value.replace(/[&<>"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[char]!);
 const format = (value: string, variables: Record<string, string | number>) => value.replace(/\{([a-z]+)\}/g, (placeholder, key: string) => key in variables ? String(variables[key]) : placeholder);
@@ -70,6 +74,15 @@ function displayLanguage(value: string, includeAuto = false): string {
 function languageOptions(selected: string, includeAuto: boolean): string {
   const auto = includeAuto ? `<option value="auto" ${selected === "auto" ? "selected" : ""}>${t("autoDetect")}</option>` : "";
   return auto + LANGUAGE_OPTIONS.map((option) => `<option value="${option.value}" ${selected === option.value ? "selected" : ""}>${escape(displayLanguage(option.value))}</option>`).join("");
+}
+
+function providerOptions(baseUrl: string): string {
+  const selected = providerForBaseUrl(baseUrl);
+  return MODEL_PROVIDERS.map((provider) => `<option value="${provider.id}" ${provider.id === selected ? "selected" : ""}>${escape(provider.name)}</option>`).join("");
+}
+
+function modelOptions(selected: string): string {
+  return `<option value="" ${selected ? "" : "selected"}>${escape(t("selectModel"))}</option>${selected ? `<option value="${escape(selected)}" selected>${escape(selected)}</option>` : ""}`;
 }
 
 function uiLanguageOptions(selected: UiLocalePreference | undefined): string {
@@ -185,10 +198,11 @@ function renderAbout(): string {
 function renderSettings(profile: Profile): string {
   return `<section class="profiles" role="tabpanel" aria-labelledby="settings-tab"><div class="section-heading"><div><span class="eyebrow">${t("profilesEyebrow")}</span><h2>${t("profiles")}</h2></div><span class="profile-count">${settings.profiles.length}</span></div><div class="profile-list">${settings.profiles.length ? settings.profiles.map(renderProfile).join("") : `<p class="empty-state">${t("noProfiles")}</p>`}</div><button class="button secondary full-width" id="add" type="button">${buttonContent("plus", t("add"))}</button></section>
     <section class="profile-editor"><div class="section-heading"><div><span class="eyebrow">${editing ? t("editingEyebrow") : t("createEyebrow")}</span><h2>${editing ? t("editProfile") : t("newProfile")}</h2></div>${icon(editing ? "profile" : "plus", "heading-icon")}</div><form id="profile-form">
-      <label>${t("name")}<input name="name" required value="${escape(profile.name)}" /></label>
-      <label>${t("baseUrl")}<input name="baseUrl" required placeholder="https://api.example.com/v1" value="${escape(profile.baseUrl)}" /></label>
-      <label>${t("apiKey")}<input name="apiKey" type="password" required autocomplete="off" value="${escape(profile.apiKey)}" /></label>
-      <label>${t("model")}<input name="model" required value="${escape(profile.model)}" /></label>
+      <label>${requiredLabel(t("name"))}<input name="name" required value="${escape(profile.name)}" /></label>
+      <label>${requiredLabel(t("provider"))}<select id="provider" name="provider" required>${providerOptions(profile.baseUrl)}</select></label>
+      <label>${requiredLabel(t("baseUrl"))}<input name="baseUrl" required placeholder="https://api.example.com/v1" value="${escape(profile.baseUrl)}" /></label>
+      <label>${requiredLabel(t("apiKey"))}<input name="apiKey" type="password" required autocomplete="off" value="${escape(profile.apiKey)}" /></label>
+      <label>${requiredLabel(t("model"))}<span class="model-field"><select id="available-models" name="model" required aria-label="${escape(t("model"))}">${modelOptions(profile.model)}</select><button class="button secondary model-fetch" type="button" id="fetch-models" disabled>${buttonContent("download", t("fetchModels"))}</button></span><small class="form-hint" id="model-fetch-status"></small></label>
       <div class="form-row"><label>${t("source")}<select id="sourceLang" class="form-select" name="sourceLanguage">${languageOptions(profile.sourceLanguage, true)}</select></label>
       <label>${t("target")}<select id="targetLang" class="form-select" name="targetLanguage">${languageOptions(profile.targetLanguage, false)}</select></label></div>
       <label>${t("mode")}<select name="mode"><option value="replace" ${profile.mode === "replace" ? "selected" : ""}>${t("replace")}</option><option value="preserve" ${profile.mode === "preserve" ? "selected" : ""}>${t("preserve")}</option></select></label>
@@ -271,8 +285,37 @@ function render() {
   if (activeTab === "translate") { bindTranslator(); return; }
   document.querySelectorAll<HTMLButtonElement>(".profile").forEach((button) => button.onclick = async () => { editing = settings.profiles.find((item) => item.id === button.dataset.id) ?? null; if (editing) { settings.activeProfileId = editing.id; useProfileLanguages(editing); await saveSettings(settings); await notifyProfileChange(); } render(); });
   document.querySelector("#add")!.addEventListener("click", () => { editing = null; render(); });
-  document.querySelector<HTMLFormElement>("#profile-form")!.onsubmit = async (event) => {
+  const form = document.querySelector<HTMLFormElement>("#profile-form")!;
+  const provider = document.querySelector<HTMLSelectElement>("#provider")!;
+  const baseUrlInput = form.elements.namedItem("baseUrl") as HTMLInputElement;
+  const apiKeyInput = form.elements.namedItem("apiKey") as HTMLInputElement;
+  const modelSelect = form.elements.namedItem("model") as HTMLSelectElement;
+  const fetchModelsButton = document.querySelector<HTMLButtonElement>("#fetch-models")!;
+  const modelStatus = document.querySelector<HTMLElement>("#model-fetch-status")!;
+  const syncFetchModelsButton = () => { fetchModelsButton.disabled = !apiKeyInput.value.trim(); };
+  apiKeyInput.addEventListener("input", syncFetchModelsButton); syncFetchModelsButton();
+  provider.addEventListener("change", () => {
+    const selected = MODEL_PROVIDERS.find((item) => item.id === provider.value);
+    if (selected?.baseUrl) baseUrlInput.value = selected.baseUrl;
+    modelSelect.innerHTML = modelOptions(""); modelStatus.textContent = "";
+  });
+  fetchModelsButton.addEventListener("click", async () => {
+    if (!apiKeyInput.value.trim()) return;
+    const error = validateBaseUrl(baseUrlInput.value.trim());
+    if (error) { await showDialog(localizeUrlError(error)); return; }
+    fetchModelsButton.disabled = true; modelStatus.textContent = t("fetchingModels");
+    try {
+      const models = await fetchModels(baseUrlInput.value.trim(), apiKeyInput.value.trim());
+      const previousModel = modelSelect.value;
+      modelSelect.innerHTML = `<option value="">${escape(t("selectModel"))}</option>${models.map((model) => `<option value="${escape(model)}">${escape(model)}</option>`).join("")}`;
+      modelSelect.value = models.includes(previousModel) ? previousModel : "";
+      modelStatus.textContent = format(t("modelsFetched"), { count: models.length });
+    } catch (caught) { modelStatus.textContent = caught instanceof Error ? caught.message : t("modelFetchFailed");
+    } finally { syncFetchModelsButton(); }
+  });
+  form.onsubmit = async (event) => {
     event.preventDefault(); const next = profileFromForm(event.currentTarget as HTMLFormElement, { ...profile, id: editing?.id ?? profile.id });
+    if (!next.baseUrl || !next.apiKey || !next.model) { await showDialog(t("requiredFields")); return; }
     const error = validateBaseUrl(next.baseUrl); if (error) { await showDialog(localizeUrlError(error)); return; }
     settings.profiles = [...settings.profiles.filter((item) => item.id !== next.id), next]; settings.activeProfileId = next.id;
     await saveSettings(settings); await notifyProfileChange(); editing = next; useProfileLanguages(next); render(); await showDialog(t("saved"));
@@ -284,7 +327,9 @@ function render() {
     await saveSettings(settings); await notifyProfileChange(); editing = null; render(); await showDialog(t("deleted"));
   });
   document.querySelector("#test")!.addEventListener("click", async () => {
-    const draft = profileFromForm(document.querySelector<HTMLFormElement>("#profile-form")!, profile);
+    if (!form.reportValidity()) return;
+    const draft = profileFromForm(form, profile);
+    if (!draft.baseUrl || !draft.apiKey || !draft.model) { await showDialog(t("requiredFields")); return; }
     const error = validateBaseUrl(draft.baseUrl); if (error) { await showDialog(localizeUrlError(error)); return; }
     try {
       await translate(draft, "Hello"); settings.profiles = [...settings.profiles.filter((item) => item.id !== draft.id), draft]; settings.activeProfileId = draft.id;

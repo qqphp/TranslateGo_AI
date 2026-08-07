@@ -132,6 +132,12 @@ input:focus, select:focus, textarea:focus { border-color: #3b82f6; box-shadow: 0
 
 form { display: grid; gap: 14px; }
 label { display: grid; gap: 6px; color: #475569; font-size: 13px; font-weight: 650; }
+.field-label { display: inline-flex; align-items: baseline; gap: 3px; }
+.required-mark { color: #dc2626; font-size: 14px; font-weight: 800; }
+.model-field { display: flex; gap: 8px; }
+.model-field select { min-width: 0; flex: 1; }
+.model-fetch { flex: 0 0 auto; white-space: nowrap; }
+.form-hint { min-height: 16px; color: #64748b; font-size: 11px; font-weight: 500; line-height: 1.4; }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .form-actions, .dialog-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .form-actions { margin-top: 5px; }
@@ -221,6 +227,8 @@ label { display: grid; gap: 6px; color: #475569; font-size: 13px; font-weight: 6
   .tabs { display: grid; grid-template-columns: repeat(3, 1fr); }
   .tab { min-width: 0; }
   .form-actions .button { flex: 1; }
+  .model-field { flex-direction: column; }
+  .model-fetch { width: 100%; }
   .feature-grid { grid-template-columns: 1fr; }
   .translator-page { grid-template-columns: 1fr; }
   .translation-history { max-height: none; }
